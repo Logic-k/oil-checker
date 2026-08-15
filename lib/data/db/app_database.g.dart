@@ -1808,10 +1808,7 @@ final class $$CarProfilesTableReferences
   static MultiTypedResultKey<$FuelingHistoriesTable, List<FuelingHistory>>
   _fuelingHistoriesRefsTable(_$AppDatabase db) => MultiTypedResultKey.fromTable(
     db.fuelingHistories,
-    aliasName: $_aliasNameGenerator(
-      db.carProfiles.id,
-      db.fuelingHistories.carProfileId,
-    ),
+    aliasName: 'car_profiles__id__fueling_histories__car_profile_id',
   );
 
   $$FuelingHistoriesTableProcessedTableManager get fuelingHistoriesRefs {
@@ -2211,13 +2208,9 @@ final class $$FuelingHistoriesTableReferences
     super.$_typedResult,
   );
 
-  static $CarProfilesTable _carProfileIdTable(_$AppDatabase db) =>
-      db.carProfiles.createAlias(
-        $_aliasNameGenerator(
-          db.fuelingHistories.carProfileId,
-          db.carProfiles.id,
-        ),
-      );
+  static $CarProfilesTable _carProfileIdTable(_$AppDatabase db) => db
+      .carProfiles
+      .createAlias('fueling_histories__car_profile_id__car_profiles__id');
 
   $$CarProfilesTableProcessedTableManager get carProfileId {
     final $_column = $_itemColumn<int>('car_profile_id')!;
