@@ -1,0 +1,11 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "framework": null,
+  "installCommand": "bash scripts/install_flutter.sh",
+  "buildCommand": "bash scripts/build_flutter.sh",
+  "outputDirectory": "build/web",
+  "rewrites": [
+    { "source": "/opinet/:path*", "destination": "/api/opinet/:path*" },
+    { "source": "/(.*)", "destination": "/index.html" }
+  ]
+}
