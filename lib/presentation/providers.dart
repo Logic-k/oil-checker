@@ -313,10 +313,19 @@ class EconomyRankingResult {
   EconomyRankingEntry? get best => ranked.isEmpty ? null : ranked.first;
 }
 
+/// OSRM table 행렬에 포함할 후보 주유소 최대 개수.
+///
+/// 공개 데모 서버(router.project-osrm.org, 비상업 1 req/s) 부담 경감을 위한
+/// 후보 축소: 직선거리 예비 점수 상위 N개만 실제 도로 거리·시간으로 정밀
+/// 계산하고, 나머지는 직선거리 예비 점수를 그대로 사용한다. (SYNTHESIS §3)
+const int kOsrmCandidateCount = 10;
+
 /// 경제성 랭킹 계산 (실연비 + 실제 도로 + 교통 혼잡 반영)
 ///
 /// - 연비 우선순위: 주행 기록 실연비 → 수동 입력 → 차량 표시연비
 /// - 기준 주유소: 가장 가까운 곳 (가격 비교 대상)
+/// - 후보 축소: 직선거리 예비 점수 상위 [kOsrmCandidateCount]개만 OSRM으로
+///   정밀 계산, 나머지는 예비 점수 유지 (공개 데모 서버 부담 경감)
 /// - 우회거리·시간: OSRM table 서비스로 **실제 도로** 기준 계산
 ///   - 왕복 = 내위치→후보 + 후보→내위치 (행렬 대칭 이용)
 /// - 시간대별 혼잡 가중치를 예상 시간에 반영 (출퇴근 1.5x)
@@ -342,17 +351,52 @@ final economyRankingProvider =
   final fuelEfficiency =
       realKmPerL ?? profile.manualFuelEfficiency ?? profile.avgFuelEfficiency;
 
+  final now = DateTime.now();
+  final congestionFactor = congestion.factorAt(now);
+  final congestionLevel = congestion.levelAt(now);
+
   // 기준 주유소 = 가장 가까운 곳
   final baseline = stations.reduce(
     (a, b) => a.distanceM <= b.distanceM ? a : b,
   );
 
-  // --- 실제 도로 거리·시간 (OSRM table: 1회 호출) ---
-  // 인덱스 0 = 현재 위치, 1..N = 주유소 순서
+  // --- 후보 축소: 직선거리 예비 점수 상위 N개만 OSRM(실제 도로)로 정밀 계산 ---
+  // 공개 데모 서버 부담 경감 (SYNTHESIS §3). 나머지는 예비 점수를 그대로 사용.
+  final preliminary = <EconomyRankingEntry>[];
+  for (final station in stations) {
+    if (station.uniId == baseline.uniId) continue; // 기준 주유소 제외
+    // 폴백과 동일한 직선거리 기반 예상 시간 (도심 평균 40km/h 가정)
+    final detourKm = computeDetourKm(
+      fromToStationKm: station.distanceM / 1000,
+    );
+    final baseDriveMin = (detourKm / 40) * 60;
+    final driveTimeMin = applyCongestion(
+      baseDriveMin: baseDriveMin,
+      congestionFactor: congestionFactor,
+    );
+    final result = calculateEconomy(
+      baselinePrice: baseline.price,
+      candidatePrice: station.price,
+      fillUpLiters: profile.tankSizeL,
+      detourKm: detourKm,
+      driveTimeMin: driveTimeMin,
+      fuelEfficiency: fuelEfficiency,
+      timeValueWonPerMin: kTimeValueWonPerMin,
+    );
+    preliminary.add(EconomyRankingEntry(station: station, result: result));
+  }
+  preliminary.sort((a, b) => b.result.score.compareTo(a.result.score));
+
+  // 정밀 계산 대상 = 예비 점수 상위 N개 (승산 있는 후보만 실제 도로로)
+  final candidates = preliminary.take(kOsrmCandidateCount).toList();
+  final candidateIds = {for (final e in candidates) e.station.uniId};
+
+  // --- 실제 도로 거리·시간 (OSRM table: 1회 호출, 후보 N개만) ---
+  // 인덱스 0 = 현재 위치, 1..N = 후보 순서
   final myPoint = LatLng(position.latitude, position.longitude);
   final points = [
     myPoint,
-    for (final s in stations) _stationLatLng(s),
+    for (final e in candidates) _stationLatLng(e.station),
   ];
 
   final ({List<List<double>> distances, List<List<double>> durations}) matrix;
@@ -366,18 +410,14 @@ final economyRankingProvider =
       profile: profile,
       fuelEfficiency: fuelEfficiency,
       isRealEfficiency: isRealEfficiency,
-      congestionLevel: congestion.levelAt(DateTime.now()),
+      congestionLevel: congestionLevel,
     );
   }
 
-  final now = DateTime.now();
-  final congestionFactor = congestion.factorAt(now);
-  final congestionLevel = congestion.levelAt(now);
-
+  // 후보는 실제 도로 결과로 재계산, 비후보는 예비 점수 유지
   final results = <EconomyRankingEntry>[];
-  for (var i = 0; i < stations.length; i++) {
-    final station = stations[i];
-    if (station.uniId == baseline.uniId) continue; // 기준 주유소 제외
+  for (var i = 0; i < candidates.length; i++) {
+    final entry = candidates[i];
     final matrixIdx = i + 1; // 행렬 인덱스 (0=내위치)
 
     // 왕복 도로거리 = 내위치→후보 + 후보→내위치
@@ -387,19 +427,25 @@ final economyRankingProvider =
     // 왕복 예상 시간 (혼잡 반영)
     final baseDriveMin =
         (matrix.durations[0][matrixIdx] + matrix.durations[matrixIdx][0]) / 60;
-    final driveTimeMin =
-        applyCongestion(baseDriveMin: baseDriveMin, congestionFactor: congestionFactor);
+    final driveTimeMin = applyCongestion(
+      baseDriveMin: baseDriveMin,
+      congestionFactor: congestionFactor,
+    );
 
     final result = calculateEconomy(
       baselinePrice: baseline.price,
-      candidatePrice: station.price,
+      candidatePrice: entry.station.price,
       fillUpLiters: profile.tankSizeL,
       detourKm: detourKm,
       driveTimeMin: driveTimeMin,
       fuelEfficiency: fuelEfficiency,
       timeValueWonPerMin: kTimeValueWonPerMin,
     );
-    results.add(EconomyRankingEntry(station: station, result: result));
+    results.add(EconomyRankingEntry(station: entry.station, result: result));
+  }
+  for (final entry in preliminary) {
+    if (candidateIds.contains(entry.station.uniId)) continue;
+    results.add(entry); // 비후보: 예비 점수 그대로
   }
 
   results.sort((a, b) => b.result.score.compareTo(a.result.score));

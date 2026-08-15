@@ -63,6 +63,52 @@ void main() {
         throwsA(isA<OsrmException>()),
       );
     });
+
+    test('같은 좌표 조합은 캐시되어 네트워크를 재호출하지 않는다', () async {
+      final dio = Dio(BaseOptions(baseUrl: 'https://example.invalid'));
+      var networkCalls = 0;
+      dio.httpClientAdapter = _MockAdapter((_) {
+        networkCalls++;
+        return _tableResponse();
+      });
+
+      final client = OsrmClient(
+        dio: dio,
+        // 캐시/스로틀 검증이므로 간격 지연은 비활성화
+        minInterval: Duration.zero,
+      );
+      const points = [
+        LatLng(37.5665, 126.978),
+        LatLng(37.54, 127.0),
+      ];
+
+      final first = await client.table(points: points);
+      final second = await client.table(points: points);
+      expect(networkCalls, 1);
+      expect(first.distances[0][1], closeTo(5500, 0.001));
+      expect(second.distances[0][1], closeTo(5500, 0.001));
+    });
+
+    test('minInterval 이내 연속 호출은 지연되어 정책(1 req/s)을 준수한다',
+        () async {
+      final dio = Dio(BaseOptions(baseUrl: 'https://example.invalid'));
+      dio.httpClientAdapter = _MockAdapter((_) => _tableResponse());
+
+      final client = OsrmClient(
+        dio: dio,
+        minInterval: const Duration(milliseconds: 300),
+      );
+      const pointsA = [LatLng(37.5665, 126.978), LatLng(37.54, 127.0)];
+      const pointsB = [LatLng(37.57, 126.99), LatLng(37.55, 127.01)];
+
+      final stopwatch = Stopwatch()..start();
+      await client.table(points: pointsA);
+      await client.table(points: pointsB);
+      stopwatch.stop();
+
+      // 두 번째 호출은 minInterval(300ms) 이상 기다려야 한다
+      expect(stopwatch.elapsedMilliseconds, greaterThanOrEqualTo(250));
+    });
   });
 }
 

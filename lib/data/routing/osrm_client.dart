@@ -37,10 +37,16 @@ class RouteLeg {
 ///
 /// `table` 서비스: 한 번의 호출로 N개 좌표 간 **전체 거리/시간 행렬**을
 /// 얻는다. 개별 라우팅 N회 대신 1회 호출로 처리해 rate limit을 아낀다.
+///
+/// 클라이언트 부담 경감:
+/// - [minInterval] 이내 연속 호출을 지연시켜 데모 서버 정책(1 req/s)을 준수
+/// - 같은 좌표 조합에 대한 행렬을 [cacheTtl] 동안 메모리에 캐시해 재요청 차단
 class OsrmClient {
   OsrmClient({
     required Dio dio,
     this.baseUrl = defaultBaseUrl,
+    this.minInterval = const Duration(seconds: 1),
+    this.cacheTtl = const Duration(minutes: 30),
   }) : _dio = dio;
 
   final Dio _dio;
@@ -51,6 +57,15 @@ class OsrmClient {
   static const String defaultBaseUrl = 'https://router.project-osrm.org';
 
   final String baseUrl;
+
+  /// 연속 요청 최소 간격 — 데모 서버 정책(1 req/s) 준수용
+  final Duration minInterval;
+
+  /// 행렬 결과 캐시 TTL — 같은 좌표 조합의 재요청을 막는다
+  final Duration cacheTtl;
+
+  DateTime? _lastRequestAt;
+  final Map<String, _CachedMatrix> _cache = {};
 
   /// N개 좌표 간 거리(m)와 시간(초) 행렬.
   ///
@@ -65,6 +80,30 @@ class OsrmClient {
     if (points.length < 2) {
       throw const OsrmException('최소 2개 좌표가 필요합니다.');
     }
+
+    // 좌표 시그니처 (소수 5자리) — 캐시 키이자 재요청 판별 기준
+    final signature = points
+        .map((p) =>
+            '${p.longitude.toStringAsFixed(5)},${p.latitude.toStringAsFixed(5)}')
+        .join(';');
+
+    // 캐시 히트 시 네트워크 호출 없이 즉시 반환
+    final now = DateTime.now();
+    final cached = _cache[signature];
+    if (cached != null && now.difference(cached.fetchedAt) < cacheTtl) {
+      return cached.matrix;
+    }
+
+    // 스로틀: minInterval 미만 경과 시 남은 시간만큼 대기
+    final last = _lastRequestAt;
+    if (last != null) {
+      final elapsed = now.difference(last);
+      if (elapsed < minInterval) {
+        await Future<void>.delayed(minInterval - elapsed);
+      }
+    }
+    _lastRequestAt = DateTime.now();
+
     final coordinates =
         points.map((p) => '${p.longitude},${p.latitude}').join(';');
 
@@ -83,7 +122,9 @@ class OsrmClient {
 
       final distances = _parseMatrix(response.data?['distances']);
       final durations = _parseMatrix(response.data?['durations']);
-      return (distances: distances, durations: durations);
+      final matrix = (distances: distances, durations: durations);
+      _cache[signature] = _CachedMatrix(matrix, DateTime.now());
+      return matrix;
     } on DioException catch (e) {
       throw OsrmException('OSRM API 호출 실패: ${e.message}', cause: e);
     }
@@ -97,4 +138,12 @@ class OsrmClient {
         .map((row) => (row as List).map((v) => (v as num).toDouble()).toList())
         .toList();
   }
+}
+
+/// 캐시 엔트리 — 행렬 + 가져온 시각
+class _CachedMatrix {
+  _CachedMatrix(this.matrix, this.fetchedAt);
+
+  final ({List<List<double>> distances, List<List<double>> durations}) matrix;
+  final DateTime fetchedAt;
 }
