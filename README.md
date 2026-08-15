@@ -130,7 +130,7 @@ flutter build apk --release
 
 ```powershell
 flutter analyze   # 0 issues (tool/katec_probe.dart의 print info 제외)
-flutter test       # 64 tests 통과
+flutter test       # 69 tests 통과
 ```
 
 ## 프로젝트 구조
