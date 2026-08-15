@@ -3,7 +3,6 @@ import 'package:drift_flutter/drift_flutter.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flutter_riverpod/legacy.dart' show StateProvider;
 import 'package:geolocator/geolocator.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:oil_checker/core/coordinate/katec.dart';
@@ -160,10 +159,28 @@ final currentLocationProvider = FutureProvider<Position>((ref) async {
 ///
 /// 홈 지도의 [위치 지정] 모드에서 탭한 좌표. 설정 시 이 좌표 기준으로
 /// 주변 주유소와 경제성 랭킹을 다시 계산한다. [내 위치] 버튼으로 null 복귀.
-final pickedLocationProvider = StateProvider<LatLng?>((ref) => null);
+class PickedLocationNotifier extends Notifier<LatLng?> {
+  @override
+  LatLng? build() => null;
+
+  void set(LatLng? value) => state = value;
+}
+
+final pickedLocationProvider = NotifierProvider<PickedLocationNotifier, LatLng?>(
+  PickedLocationNotifier.new,
+);
 
 /// 위치 지정 모드 활성 여부 — true면 지도 탭 시 [pickedLocationProvider] 설정
-final isPickingLocationProvider = StateProvider<bool>((ref) => false);
+class IsPickingLocationNotifier extends Notifier<bool> {
+  @override
+  bool build() => false;
+
+  void set(bool value) => state = value;
+}
+
+final isPickingLocationProvider = NotifierProvider<IsPickingLocationNotifier, bool>(
+  IsPickingLocationNotifier.new,
+);
 
 /// 실시간 GPS 위치 스트림 — 지도 파란 점(내 위치) 실시간 이동용
 ///

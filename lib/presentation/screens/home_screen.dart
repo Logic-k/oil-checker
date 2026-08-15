@@ -53,7 +53,7 @@ class HomeScreen extends ConsumerWidget {
               isPicking: isPicking,
               pickedLocation: picked,
               onPick: (point) =>
-                  ref.read(pickedLocationProvider.notifier).state = point,
+                  ref.read(pickedLocationProvider.notifier).set(point),
             ),
           ),
           _TopBar(
@@ -66,12 +66,11 @@ class HomeScreen extends ConsumerWidget {
           _LocationButtons(
             isPicking: isPicking,
             hasPicked: picked != null,
-            onTogglePick: () => ref
-                .read(isPickingLocationProvider.notifier)
-                .state = !isPicking,
+            onTogglePick: () =>
+                ref.read(isPickingLocationProvider.notifier).set(!isPicking),
             onUseMyLocation: () {
-              ref.read(pickedLocationProvider.notifier).state = null;
-              ref.read(isPickingLocationProvider.notifier).state = false;
+              ref.read(pickedLocationProvider.notifier).set(null);
+              ref.read(isPickingLocationProvider.notifier).set(false);
             },
           ),
           _StationSheet(
