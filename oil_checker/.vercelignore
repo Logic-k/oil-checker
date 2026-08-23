@@ -1,0 +1,12 @@
+# Vercel 배포에서 제외할 로컬 산출물 (clone 크기 / 300MB 한도 방지)
+.dart_tool
+build/app
+build/android
+build/ios
+build/linux
+build/macos
+build/windows
+build/unit_test_assets
+build/runner
+.idea
+*.iml
