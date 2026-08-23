@@ -1,0 +1,13 @@
+- generic [ref=e5]:
+  - generic:
+    - generic:
+      - generic:
+        - generic:
+          - generic:
+            - generic:
+              - heading "내 차량 등록" [active] [level=2]
+            - generic:
+              - group:
+                - generic: 차량을 등록하면 주변 주유소의 절약 금액을 자동으로 계산해드려요.
+                - textbox "차량 모델 검색" [ref=e7]
+                - generic: 모델명을 입력해 검색하세요.

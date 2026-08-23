@@ -1,0 +1,27 @@
+- generic [ref=e5]:
+  - generic:
+    - generic:
+      - generic:
+        - generic:
+          - generic:
+            - generic:
+              - heading "내 주변 주유소" [level=2]
+              - checkbox "휘발유" [ref=e6]
+              - button "새로고침" [ref=e7]
+            - button [active] [ref=e8]
+            - generic:
+              - group:
+                - button "내트럭(주)부산사업소 경제 1위 3401m 1819원/L" [ref=e9]
+                - button "내트럭(주)부산용당 4151m 1829원/L" [ref=e10]
+                - button "퍼시픽㈜영선주유소 2907m 1845원/L" [ref=e11]
+                - button "북항대교주유소 4386m 1848원/L" [ref=e12]
+                - button "은마석유주식회사 4688m 1848원/L" [ref=e13]
+                - button "충무대로 셀프주유소 와이케이에너지㈜ 4267m 1855원/L" [ref=e14]
+                - button "남부주유소 (송도아랫길) 4287m 1855원/L" [ref=e15]
+                - button "남항대교주유소 4396m 1855원/L" [ref=e16]
+                - button "동현주유소 801m 1875원/L" [ref=e17]
+            - tablist:
+              - tab "홈" [selected] [ref=e18]
+              - tab "경제적 주유소" [ref=e19]
+              - tab "주유 이력" [ref=e20]
+              - tab "설정" [ref=e21]

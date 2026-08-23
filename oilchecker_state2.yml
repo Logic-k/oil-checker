@@ -1,0 +1,24 @@
+- generic [ref=e4] [cursor=pointer]:
+  - generic:
+    - generic:
+      - generic:
+        - generic:
+          - generic:
+            - generic:
+              - heading "내 주변 주유소" [level=2]
+              - checkbox "휘발유" [ref=e5]
+              - button "새로고침" [ref=e6]
+            - button [active] [ref=e7]
+            - generic:
+              - group:
+                - button "SKE 내트럭(주)부산사업소 3401m 1819원/L" [ref=e8]
+                - button "SKE 내트럭(주)부산용당 4151m 1829원/L" [ref=e9]
+                - button "RTO 퍼시픽㈜영선주유소 2907m 1845원/L" [ref=e10]
+                - button "SOL 북항대교주유소 4386m 1848원/L" [ref=e11]
+                - button "GSC 은마석유주식회사 4688m 1848원/L" [ref=e12]
+                - button "GSC 충무대로 셀프주유소 와이케이에너지㈜ 4267m 1855원/L" [ref=e13]
+                - button "GSC 남부주유소 (송도아랫길) 4287m 1855원/L" [ref=e14]
+                - button "SKE 남항대교주유소 4396m 1855원/L" [ref=e15]
+                - button "SKE 동현주유소 801m 1875원/L" [ref=e16]
+                - button "SKE 태종대온천주유소 1880m 1877원/L" [ref=e17]
+                - button "SKE 태종에너지청학주유소 1638m 1878원/L" [ref=e18]

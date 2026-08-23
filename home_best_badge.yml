@@ -1,0 +1,10 @@
+- generic [ref=e4]:
+  - generic:
+    - generic:
+      - generic:
+        - generic:
+          - generic:
+            - generic:
+              - heading "내 주변 주유소" [active] [level=2]
+              - checkbox "휘발유" [ref=e5]
+              - button "새로고침" [ref=e6]
