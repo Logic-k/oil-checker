@@ -1,0 +1,18 @@
+# OS
+Thumbs.db
+.DS_Store
+desktop.ini
+
+# IDE
+.idea/
+*.iml
+.vscode/
+
+# Codegraph local index
+.codegraph/
+
+# Playwright MCP session data
+.playwright-mcp/
+
+# OpenCode machine session state (research docs under .omo/ulw-research are tracked)
+.omo/run-continuation/
