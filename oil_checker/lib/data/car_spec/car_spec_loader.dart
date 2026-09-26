@@ -76,10 +76,7 @@ class CarSpecLoader {
 
   /// CSV 문자열을 파싱해 [CarSpecEntry] 목록 반환
   static List<CarSpecEntry> parseCsv(String csv) {
-    final rows = const CsvToListConverter(
-      shouldParseNumbers: false,
-      eol: '\n',
-    ).convert(csv);
+    final rows = const CsvDecoder().convert(csv);
 
     if (rows.isEmpty) return const [];
 

@@ -1,11 +1,15 @@
 import 'package:dio/dio.dart';
 import 'package:latlong2/latlong.dart';
 
-/// OSRM API 호출 실패 시 던지는 예외
-class OsrmException implements Exception {
+import 'routing_client.dart';
+
+/// OSRM API 호출 실패 시 던지는 예외 — RoutingException 구현
+class OsrmException implements RoutingException {
   const OsrmException(this.message, {this.cause});
 
+  @override
   final String message;
+  @override
   final Object? cause;
 
   @override
@@ -41,7 +45,7 @@ class RouteLeg {
 /// 클라이언트 부담 경감:
 /// - [minInterval] 이내 연속 호출을 지연시켜 데모 서버 정책(1 req/s)을 준수
 /// - 같은 좌표 조합에 대한 행렬을 [cacheTtl] 동안 메모리에 캐시해 재요청 차단
-class OsrmClient {
+class OsrmClient implements RoutingClient {
   OsrmClient({
     required Dio dio,
     this.baseUrl = defaultBaseUrl,
@@ -73,6 +77,7 @@ class OsrmClient {
   /// 왕복 우회거리는 `dist[i][0] + dist[0][i]`처럼 인덱스를 명시적으로 사용.
   ///
   /// 반환: `(distances, durations)` — 각각 `List<List<double>>`.
+  @override
   Future<({List<List<double>> distances, List<List<double>> durations})>
       table({
     required List<LatLng> points,

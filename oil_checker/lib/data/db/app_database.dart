@@ -200,14 +200,20 @@ class AppDatabase extends _$AppDatabase {
   /// 최근 2회 이력으로 실연비 계산 (주행거리차 ÷ 주유량)
   ///
   /// 주행거리계 기준: (최신 odometer - 이전 odometer) / 최신 주유량
+  /// 이상치 필터: 거리 ≤0, 연비 3~30km/L 밖은 제외 (다음 쌍으로 탐색)
   Future<double?> computeLatestKmPerL(int carProfileId) async {
     final histories = await getFuelingHistories(carProfileId);
     if (histories.length < 2) return null;
-    final latest = histories[0];
-    final previous = histories[1];
-    final distanceKm = latest.odometerKm - previous.odometerKm;
-    if (distanceKm <= 0 || latest.liters <= 0) return null;
-    return distanceKm / latest.liters;
+    for (var i = 0; i < histories.length - 1; i++) {
+      final latest = histories[i];
+      final previous = histories[i + 1];
+      final distanceKm = latest.odometerKm - previous.odometerKm;
+      if (distanceKm <= 0 || latest.liters <= 0) continue;
+      final kmPerL = distanceKm / latest.liters;
+      if (kmPerL < 3 || kmPerL > 30) continue;
+      return kmPerL;
+    }
+    return null;
   }
 
   // ── 주유소 캐시 ───────────────────────────────────────────────

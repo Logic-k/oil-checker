@@ -24,15 +24,26 @@ API 키는 소스코드에 평문으로 두지 않는다. 플랫폼별로 키 �
 | 플랫폼 | 키 주입 방법 | 키 위치 |
 |---|---|---|
 | 웹 (배포) | Vercel 환경변수 `OPINET_API_CODE` → 프록시가 서버측 주입 | JS 번들에 **미포함** |
-| 웹 (개발) | `OPINET_API_CODE` 환경변수 → 로컬 프록시가 서버측 주입 | JS 번들에 **미포함** |
-| 네이티브 (Android) | `--dart-define=OPINET_API_CODE=...` 빌드 시 주입 | dart-define (빌드 인자) |
+| 웹 (개발) | `api-keys.json` 파일 또는 `OPINET_API_CODE` 환경변수 → 로컬 프록시가 서버측 주입 | JS 번들에 **미포함** |
+| 네이티브 (Android) | `--dart-define-from-file=api-keys.json` 빌드 시 주입 | dart-define (빌드 인자) |
 | 에뮬레이터 (프록시 경유) | 프록시가 서버측 주입 (키 불필요) | 미포함 |
 
-```powershell
-# 네이티브 빌드 시 키 주입 (실기기 직접 호출용)
-flutter build apk --debug --dart-define=OPINET_API_CODE=<키>
+**로컬 키 파일 `api-keys.json`** (gitignored — 커밋되지 않는 로컬 전용 파일):
 
-# 로컬 프록시 실행 시 (웹 개발 / 에뮬레이터 경유)
+```json
+{
+  "OPINET_API_CODE": "<키>"
+}
+```
+
+```powershell
+# 네이티브 빌드 시 키 주입 (실기기/에뮬레이터 직접 호출용)
+flutter build apk --debug --dart-define-from-file=api-keys.json
+
+# 로컬 프록시 실행 시 (웹 개발 / 에뮬레이터 경유) — api-keys.json을 자동으로 읽는다
+dart run tool/opinet_proxy.dart 8899
+
+# 환경변수는 api-keys.json보다 우선
 $env:OPINET_API_CODE="<키>"; dart run tool/opinet_proxy.dart 8899
 ```
 
@@ -130,7 +141,7 @@ flutter build apk --release
 
 ```powershell
 flutter analyze   # 0 issues (tool/katec_probe.dart의 print info 제외)
-flutter test       # 69 tests 통과
+flutter test       # 73 tests 통과 (KATEC 8건 포함)
 ```
 
 ## 프로젝트 구조

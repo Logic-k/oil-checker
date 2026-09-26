@@ -33,6 +33,10 @@ migrate_working_dir/
 /build/
 /coverage/
 
+# Local secrets — API 키 파일 (커밋 금지, AGENTS.md §5)
+api-keys.json
+api-keys.*.json
+
 # Symbolication related
 app.*.symbols
 

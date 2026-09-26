@@ -4,8 +4,10 @@ import 'package:oil_checker/core/opinet/opinet_client.dart';
 import 'package:oil_checker/core/theme/app_theme.dart';
 import 'package:oil_checker/presentation/providers.dart';
 import 'package:oil_checker/presentation/screens/car_setup_screen.dart';
+import 'package:oil_checker/core/theme/app_motion.dart';
 import 'package:oil_checker/presentation/ui_prefs.dart';
 import 'package:oil_checker/presentation/widgets/app_state_views.dart';
+import 'package:oil_checker/presentation/widgets/motion_widgets.dart';
 
 /// 설정 화면 (하단 탭 4번)
 class SettingsScreen extends ConsumerWidget {
@@ -310,7 +312,7 @@ class _RowTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    return InkWell(
+    final tile = InkWell(
       onTap: onTap,
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 14),
@@ -346,6 +348,8 @@ class _RowTile extends StatelessWidget {
         ),
       ),
     );
+    // 탭 가능한 행만 눌림 스케일 피드백
+    return onTap == null ? tile : Pressable(child: tile);
   }
 }
 
@@ -411,7 +415,9 @@ class _Segmented extends StatelessWidget {
           for (var i = 0; i < options.length; i++)
             GestureDetector(
               onTap: () => onChanged(i),
-              child: Container(
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 180),
+                curve: AppMotion.curveStandard,
                 padding:
                     const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                 decoration: BoxDecoration(
@@ -475,15 +481,17 @@ class _Stepper extends StatelessWidget {
   }
 
   Widget _button(IconData icon, VoidCallback? onTap) {
-    return InkWell(
-      onTap: onTap,
-      child: SizedBox(
-        width: 38,
-        height: 38,
-        child: Icon(
-          icon,
-          size: 17,
-          color: onTap == null ? AppColors.mutedFaint : AppColors.muted,
+    return Pressable(
+      child: InkWell(
+        onTap: onTap,
+        child: SizedBox(
+          width: 38,
+          height: 38,
+          child: Icon(
+            icon,
+            size: 17,
+            color: onTap == null ? AppColors.mutedFaint : AppColors.muted,
+          ),
         ),
       ),
     );

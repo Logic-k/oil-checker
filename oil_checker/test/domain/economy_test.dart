@@ -153,8 +153,9 @@ void main() {
   });
 }
 
-class _Ranked {
+class _Ranked implements HasScore {
   const _Ranked(this.score);
+  @override
   final double score;
 }
 

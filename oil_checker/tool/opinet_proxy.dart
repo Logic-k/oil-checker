@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 
 /// 로컬 개발용 서버: build/web 정적 파일 서빙 + Opinet API CORS 프록시
@@ -15,6 +16,7 @@ import 'dart:io';
 /// API 키 보안: Opinet 인증 코드는 클라이언트가 보내지 않고, 이 프록시가
 /// 환경변수 `OPINET_API_CODE`에서 읽어 서버측에서 주입한다. (배포 프록시
 /// `api/opinet/[...path].js`와 동일한 정책 — 웹 JS 번들에 키 미노출)
+/// 환경변수가 없으면 프로젝트 루트의 `api-keys.json`(gitignored)을 읽는다.
 void main(List<String> args) async {
   final port = args.isNotEmpty ? int.tryParse(args[0]) ?? 8899 : 8899;
   final webDir = args.length > 1
@@ -77,7 +79,14 @@ Future<void> _handle(HttpRequest request, Directory webDir) async {
 }
 
 /// 앱이 사용하는 Opinet 엔드포인트만 허용한다 (무분별한 프록시 남용·키 도용 방지).
-const Set<String> _allowedEndpoints = {'aroundAll.do', 'detailById.do'};
+// Phase 3-A: lowTop10 / avgSidoPrice / avgAllPrice 읽기 전용 추가 (3건/일 예산 내)
+const Set<String> _allowedEndpoints = {
+  'aroundAll.do',
+  'detailById.do',
+  'lowTop10.do',
+  'avgSidoPrice.do',
+  'avgAllPrice.do',
+};
 
 /// https://www.opinet.co.kr/api 로 중계. CORS 헤더를 붙여준다.
 ///
@@ -96,12 +105,12 @@ Future<void> _proxyOpinet(HttpRequest request) async {
     return;
   }
 
-  // 키가 없으면 500 — 개발 환경변수 누락을 즉시 드러낸다.
-  final apiCode = Platform.environment['OPINET_API_CODE'];
+  // 키가 없으면 500 — 개발 키 누락을 즉시 드러낸다.
+  final apiCode = _loadApiCode();
   if (apiCode == null || apiCode.isEmpty) {
     request.response
       ..statusCode = HttpStatus.internalServerError
-      ..write('OPINET_API_CODE is not configured (환경변수를 설정하세요).');
+      ..write('OPINET_API_CODE is not configured (환경변수 또는 api-keys.json을 설정하세요).');
     await request.response.close();
     return;
   }
@@ -146,6 +155,27 @@ Future<void> _proxyOpinet(HttpRequest request) async {
   } finally {
     client.close(force: true);
   }
+}
+
+/// `OPINET_API_CODE` 해석 — 환경변수 우선, 없으면 `api-keys.json` 폴백.
+/// 파일은 CWD(프로젝트 루트에서 실행 가정) → 스크립트 기준 상위 디렉터리 순으로 찾는다.
+String? _loadApiCode() {
+  final env = Platform.environment['OPINET_API_CODE'];
+  if (env != null && env.isNotEmpty) return env;
+
+  final candidates = <File>[
+    File('api-keys.json'),
+    File.fromUri(Platform.script.resolve('../api-keys.json')),
+  ];
+  for (final file in candidates) {
+    try {
+      if (!file.existsSync()) continue;
+      final json = jsonDecode(file.readAsStringSync());
+      final code = json is Map ? json['OPINET_API_CODE'] : null;
+      if (code is String && code.isNotEmpty) return code;
+    } catch (_) {}
+  }
+  return null;
 }
 
 ContentType _contentType(String path) {

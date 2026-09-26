@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:oil_checker/core/theme/app_motion.dart';
 import 'package:oil_checker/core/theme/app_theme.dart';
 
 /// 로딩 스켈레톤 — 스피너 대신 들어올 레이아웃을 미리 보여준다.
@@ -31,7 +32,18 @@ class _AppSkeletonState extends State<AppSkeleton>
   late final AnimationController _controller = AnimationController(
     vsync: this,
     duration: const Duration(milliseconds: 1400),
-  )..repeat();
+  );
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // 접근성: 동작 줄이기 설정 시 시머 정지 (정적 블록만 표시)
+    if (AppMotion.reduceMotion(context)) {
+      _controller.stop();
+    } else if (!_controller.isAnimating) {
+      _controller.repeat();
+    }
+  }
 
   @override
   void dispose() {
@@ -126,6 +138,8 @@ class _Block extends StatelessWidget {
 }
 
 /// 빈 상태 / 에러 공통 뷰 — 원인 + 해결 행동 + 대안 경로
+///
+/// 첫 표시 시 아이콘 블록이 살짝 떠오르듯 등장한다 (빈 화면의 정적감 완화).
 class AppEmptyView extends StatelessWidget {
   const AppEmptyView({
     super.key,
@@ -149,7 +163,7 @@ class AppEmptyView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    return Center(
+    Widget content = Center(
       child: Padding(
         padding: const EdgeInsets.all(32),
         child: Column(
@@ -210,6 +224,21 @@ class AppEmptyView extends StatelessWidget {
           ],
         ),
       ),
+    );
+
+    if (AppMotion.reduceMotion(context)) return content;
+    return TweenAnimationBuilder<double>(
+      tween: Tween(begin: 0, end: 1),
+      duration: const Duration(milliseconds: 400),
+      curve: AppMotion.curveEnter,
+      builder: (context, t, child) => Opacity(
+        opacity: t,
+        child: Transform.translate(
+          offset: Offset(0, 14 * (1 - t)),
+          child: child,
+        ),
+      ),
+      child: content,
     );
   }
 }

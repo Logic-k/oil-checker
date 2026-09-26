@@ -1,13 +1,15 @@
+import 'package:animations/animations.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:geolocator/geolocator.dart';
 import 'package:oil_checker/core/format/distance_format.dart';
+import 'package:oil_checker/core/theme/app_motion.dart';
 import 'package:oil_checker/core/theme/app_theme.dart';
 import 'package:oil_checker/domain/economy/economy_engine.dart';
 import 'package:oil_checker/presentation/providers.dart';
 import 'package:oil_checker/presentation/screens/station_detail_screen.dart';
 import 'package:oil_checker/presentation/ui_prefs.dart';
 import 'package:oil_checker/presentation/widgets/app_state_views.dart';
+import 'package:oil_checker/presentation/widgets/motion_widgets.dart';
 import 'package:oil_checker/presentation/widgets/station_widgets.dart';
 
 /// 절약순위 화면 (하단 탭 2번 — 핵심 화면)
@@ -51,9 +53,9 @@ class _RankingScreenState extends ConsumerState<RankingScreen> {
             onPressed: () =>
                 setState(() => _sortByDistance = !_sortByDistance),
           ),
-          IconButton(
+          SpinAction(
             tooltip: '새로고침',
-            icon: const Icon(Icons.refresh, size: 22),
+            icon: Icons.refresh,
             onPressed: () => ref.invalidate(stationsAroundProvider),
           ),
           const SizedBox(width: 4),
@@ -135,49 +137,78 @@ class _RankingBody extends ConsumerWidget {
                   title: '이 범위 안에 주유소가 없습니다',
                   message: '거리 필터를 넓혀보세요.',
                 )
-              : ListView(
-                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
-                  children: [
-                    _BestCard(
-                      entry: shown.first,
-                      result: result,
-                      onTap: position == null
-                          ? null
-                          : () => _openDetail(context, shown.first, position),
+              : RefreshIndicator(
+                  color: Theme.of(context).brightness == Brightness.dark
+                      ? AppColors.best
+                      : AppColors.ink,
+                  // 당겨서 새로고침 — 주유소/랭킹 재계산
+                  onRefresh: () async =>
+                      ref.invalidate(stationsAroundProvider),
+                  child: ListView(
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+                    children: [
+                    OpenContainer(
+                      transitionDuration: const Duration(milliseconds: 450),
+                      tappable: false,
+                      closedElevation: 0,
+                      openElevation: 0,
+                      closedColor: Colors.transparent,
+                      openColor: Theme.of(context).colorScheme.surface,
+                      middleColor: Theme.of(context).colorScheme.surface,
+                      closedShape: RoundedRectangleBorder(
+                        borderRadius:
+                            BorderRadius.circular(AppTheme.radiusLarge),
+                      ),
+                      closedBuilder: (context, open) => _BestCard(
+                        entry: shown.first,
+                        result: result,
+                        onTap: position == null ? null : open,
+                      ),
+                      openBuilder: (context, _) => StationDetailScreen(
+                        station: shown.first.station,
+                        position: position!,
+                      ),
                     ),
                     const SizedBox(height: 12),
                     for (var i = 1; i < shown.length; i++) ...[
-                      StationCard(
-                        station: shown[i].station,
-                        rank: i + 1,
-                        savingAmount: shown[i].result.score,
-                        detourKm: shown[i].result.detourKm,
-                        driveTimeMin: shown[i].result.driveTimeMin,
-                        onTap: position == null
-                            ? null
-                            : () => _openDetail(context, shown[i], position),
+                      StaggerIn(
+                        index: i,
+                        child: OpenContainer(
+                          transitionDuration:
+                              const Duration(milliseconds: 450),
+                          tappable: false,
+                          closedElevation: 0,
+                          openElevation: 0,
+                          closedColor: Colors.transparent,
+                          openColor:
+                              Theme.of(context).colorScheme.surface,
+                          middleColor:
+                              Theme.of(context).colorScheme.surface,
+                          closedShape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                          closedBuilder: (context, open) => StationCard(
+                            station: shown[i].station,
+                            rank: i + 1,
+                            savingAmount: shown[i].result.score,
+                            detourKm: shown[i].result.detourKm,
+                            driveTimeMin: shown[i].result.driveTimeMin,
+                            onTap: position == null ? null : open,
+                          ),
+                          openBuilder: (context, _) => StationDetailScreen(
+                            station: shown[i].station,
+                            position: position!,
+                          ),
+                        ),
                       ),
                       const SizedBox(height: 9),
                     ],
                   ],
+                  ),
                 ),
         ),
       ],
-    );
-  }
-
-  void _openDetail(
-    BuildContext context,
-    EconomyRankingEntry entry,
-    Position position,
-  ) {
-    Navigator.of(context).push(
-      MaterialPageRoute<void>(
-        builder: (_) => StationDetailScreen(
-          station: entry.station,
-          position: position,
-        ),
-      ),
     );
   }
 }
@@ -207,26 +238,30 @@ class _FilterBar extends StatelessWidget {
           for (final (label, value) in filters)
             Padding(
               padding: const EdgeInsets.only(right: 7, top: 6, bottom: 8),
-              child: GestureDetector(
-                onTap: () => onChanged(value),
-                child: Container(
-                  alignment: Alignment.center,
-                  padding: const EdgeInsets.symmetric(horizontal: 15),
-                  decoration: BoxDecoration(
-                    color: maxDistanceM == value
-                        ? (isDark ? AppColors.best : AppColors.ink)
-                        : scheme.surface,
-                    borderRadius: BorderRadius.circular(999),
-                    border: Border.all(color: scheme.outlineVariant),
-                  ),
-                  child: Text(
-                    label,
-                    style: TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w700,
+              child: Pressable(
+                child: GestureDetector(
+                  onTap: () => onChanged(value),
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 180),
+                    curve: AppMotion.curveStandard,
+                    alignment: Alignment.center,
+                    padding: const EdgeInsets.symmetric(horizontal: 15),
+                    decoration: BoxDecoration(
                       color: maxDistanceM == value
-                          ? (isDark ? AppColors.ink : Colors.white)
-                          : scheme.onSurface,
+                          ? (isDark ? AppColors.best : AppColors.ink)
+                          : scheme.surface,
+                      borderRadius: BorderRadius.circular(999),
+                      border: Border.all(color: scheme.outlineVariant),
+                    ),
+                    child: Text(
+                      label,
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                        color: maxDistanceM == value
+                            ? (isDark ? AppColors.ink : Colors.white)
+                            : scheme.onSurface,
+                      ),
                     ),
                   ),
                 ),
@@ -326,16 +361,34 @@ class _BestCard extends ConsumerWidget {
                   crossAxisAlignment: CrossAxisAlignment.baseline,
                   textBaseline: TextBaseline.alphabetic,
                   children: [
-                    Text(
-                      formatWon(amount),
-                      style: const TextStyle(
-                        fontSize: 50,
-                        height: 1,
-                        fontWeight: FontWeight.w900,
-                        letterSpacing: -2.2,
-                        color: AppColors.best,
+                    // 히어로 절약액 — 값이 바뀌면 부드럽게 카운트업
+                    if (AppMotion.reduceMotion(context))
+                      Text(
+                        formatWon(amount),
+                        style: const TextStyle(
+                          fontSize: 50,
+                          height: 1,
+                          fontWeight: FontWeight.w900,
+                          letterSpacing: -2.2,
+                          color: AppColors.best,
+                        ),
+                      )
+                    else
+                      TweenAnimationBuilder<double>(
+                        tween: Tween(begin: 0, end: amount),
+                        duration: AppMotion.heroCountUp,
+                        curve: AppMotion.curveEnter,
+                        builder: (context, t, _) => Text(
+                          formatWon(t.round()),
+                          style: const TextStyle(
+                            fontSize: 50,
+                            height: 1,
+                            fontWeight: FontWeight.w900,
+                            letterSpacing: -2.2,
+                            color: AppColors.best,
+                          ),
+                        ),
                       ),
-                    ),
                     const SizedBox(width: 3),
                     const Text(
                       '원',

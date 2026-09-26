@@ -1,12 +1,15 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:oil_checker/core/opinet/opinet_client.dart';
+import 'package:oil_checker/core/theme/app_motion.dart';
 import 'package:oil_checker/core/theme/app_theme.dart';
 import 'package:oil_checker/data/car_spec/car_spec_loader.dart';
 import 'package:oil_checker/presentation/providers.dart';
 import 'package:oil_checker/presentation/widgets/app_state_views.dart';
+import 'package:oil_checker/presentation/widgets/motion_widgets.dart';
 
 /// 차량 등록 온보딩 — 2단계
 ///
@@ -79,9 +82,10 @@ class _CarSetupScreenState extends ConsumerState<CarSetupScreen> {
             isActive: true,
           );
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('차량이 등록되었습니다')),
-      );
+      HapticFeedback.mediumImpact();
+      // 성공 해피 모먼트 — 체크가 그려지는 오버레이를 잠깐 보여준다
+      await _showSuccessOverlay();
+      if (!mounted) return;
       if (Navigator.of(context).canPop()) Navigator.of(context).pop();
     } catch (e) {
       if (!mounted) return;
@@ -94,6 +98,18 @@ class _CarSetupScreenState extends ConsumerState<CarSetupScreen> {
   void _showError(String message) {
     ScaffoldMessenger.of(context)
         .showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  /// 등록 완료 오버레이 — 체크 애니메이션 + 짧은 홀드 후 자동 닫힘
+  Future<void> _showSuccessOverlay() {
+    return showGeneralDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      barrierLabel: '등록 완료',
+      barrierColor: Colors.black54,
+      transitionDuration: const Duration(milliseconds: 220),
+      pageBuilder: (context, _, _) => const _SuccessOverlay(),
+    );
   }
 
   @override
@@ -109,7 +125,9 @@ class _CarSetupScreenState extends ConsumerState<CarSetupScreen> {
                   for (var i = 0; i < 2; i++) ...[
                     if (i > 0) const SizedBox(width: 6),
                     Expanded(
-                      child: Container(
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 280),
+                        curve: AppMotion.curveStandard,
                         height: 4,
                         decoration: BoxDecoration(
                           color: i <= _step
@@ -124,7 +142,30 @@ class _CarSetupScreenState extends ConsumerState<CarSetupScreen> {
               ),
             ),
             Expanded(
-              child: _step == 0 ? _buildStep1() : _buildStep2(),
+              // STEP 전환 — 오른쪽에서 슬라이드+페이드
+              child: AnimatedSwitcher(
+                duration: const Duration(milliseconds: 350),
+                switchInCurve: AppMotion.curveEnter,
+                switchOutCurve: AppMotion.curveExit,
+                transitionBuilder: (child, animation) {
+                  final isIncoming = child.key == ValueKey('step$_step');
+                  final slide = Tween<Offset>(
+                    begin: Offset(isIncoming ? 0.08 : -0.08, 0),
+                    end: Offset.zero,
+                  ).animate(animation);
+                  return FadeTransition(
+                    opacity: animation,
+                    child: SlideTransition(
+                      position: slide,
+                      child: child,
+                    ),
+                  );
+                },
+                child: KeyedSubtree(
+                  key: ValueKey('step$_step'),
+                  child: _step == 0 ? _buildStep1() : _buildStep2(),
+                ),
+              ),
             ),
             _buildBottomBar(),
           ],
@@ -141,10 +182,22 @@ class _CarSetupScreenState extends ConsumerState<CarSetupScreen> {
     return ListView(
       padding: const EdgeInsets.fromLTRB(24, 22, 24, 16),
       children: [
-        const _StepHeader(
-          step: 'STEP 1 / 2',
-          title: '어떤 차를\n타고 계신가요?',
-          subtitle: '공단 연비 데이터로 절약 금액을 계산해요.',
+        // 첫 진입 랜딩 — 브랜드 아이콘이 스프링으로 떠오른다
+        PopIn(
+          child: Image.asset(
+            'assets/brand/icon-512.png',
+            width: 56,
+            height: 56,
+          ),
+        ),
+        const SizedBox(height: 18),
+        StaggerIn(
+          index: 0,
+          child: const _StepHeader(
+            step: 'STEP 1 / 2',
+            title: '어떤 차를\n타고 계신가요?',
+            subtitle: '공단 연비 데이터로 절약 금액을 계산해요.',
+          ),
         ),
         const SizedBox(height: 22),
         TextField(
@@ -210,12 +263,18 @@ class _CarSetupScreenState extends ConsumerState<CarSetupScreen> {
                 ),
               ),
             ),
-            for (final entry in unique.take(20)) ...[
-              _CarResultTile(
-                entry: entry,
-                selected: _selected?.modelName == entry.modelName &&
-                    _selected?.fuelType == entry.fuelType,
-                onTap: () => setState(() => _selected = entry),
+            for (final (i, entry) in unique.take(20).indexed) ...[
+              StaggerIn(
+                index: i,
+                child: _CarResultTile(
+                  entry: entry,
+                  selected: _selected?.modelName == entry.modelName &&
+                      _selected?.fuelType == entry.fuelType,
+                  onTap: () {
+                    HapticFeedback.selectionClick();
+                    setState(() => _selected = entry);
+                  },
+                ),
               ),
               const SizedBox(height: 10),
             ],
@@ -335,29 +394,34 @@ class _CarSetupScreenState extends ConsumerState<CarSetupScreen> {
         Row(
           children: [
             for (final preset in _tankPresets) ...[
-              GestureDetector(
-                onTap: () => setState(
-                  () => _tankController.text = preset.toStringAsFixed(0),
-                ),
-                child: Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                  margin: const EdgeInsets.only(right: 8),
-                  decoration: BoxDecoration(
-                    color: _tankController.text == preset.toStringAsFixed(0)
-                        ? scheme.onSurface
-                        : scheme.surface,
-                    borderRadius: BorderRadius.circular(999),
-                    border: Border.all(color: scheme.outlineVariant),
+              Pressable(
+                child: GestureDetector(
+                  onTap: () => setState(
+                    () => _tankController.text = preset.toStringAsFixed(0),
                   ),
-                  child: Text(
-                    '${preset.toStringAsFixed(0)}L',
-                    style: TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w700,
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 180),
+                    curve: AppMotion.curveStandard,
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 14, vertical: 8),
+                    margin: const EdgeInsets.only(right: 8),
+                    decoration: BoxDecoration(
                       color: _tankController.text == preset.toStringAsFixed(0)
-                          ? scheme.surface
-                          : scheme.onSurface,
+                          ? scheme.onSurface
+                          : scheme.surface,
+                      borderRadius: BorderRadius.circular(999),
+                      border: Border.all(color: scheme.outlineVariant),
+                    ),
+                    child: Text(
+                      '${preset.toStringAsFixed(0)}L',
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                        color:
+                            _tankController.text == preset.toStringAsFixed(0)
+                                ? scheme.surface
+                                : scheme.onSurface,
+                      ),
                     ),
                   ),
                 ),
@@ -533,12 +597,13 @@ class _CarResultTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
 
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(16),
-        child: Container(
+    return Pressable(
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(16),
+          child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
           decoration: BoxDecoration(
             color: selected
@@ -611,11 +676,56 @@ class _CarResultTile extends StatelessWidget {
               ),
               if (selected) ...[
                 const SizedBox(width: 8),
-                Icon(Icons.check, size: 20, color: scheme.onSurface),
+                // 선택 체크 — 팝인으로 확정감을 준다
+                PopIn(child: Icon(Icons.check, size: 20, color: scheme.onSurface)),
               ],
             ],
           ),
+          ),
         ),
+      ),
+    );
+  }
+}
+
+/// 등록 완료 오버레이 — 체크 애니메이션이 끝나면 잠깐 유지 후 자동으로 닫힌다
+class _SuccessOverlay extends StatefulWidget {
+  const _SuccessOverlay();
+
+  @override
+  State<_SuccessOverlay> createState() => _SuccessOverlayState();
+}
+
+class _SuccessOverlayState extends State<_SuccessOverlay> {
+  bool _closing = false;
+
+  void _onCheckDone() {
+    if (_closing) return;
+    _closing = true;
+    // 체크가 완성되면 0.6s 홀드 후 닫기
+    Timer(const Duration(milliseconds: 600), () {
+      if (mounted) Navigator.of(context).pop();
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          SuccessCheck(onDone: _onCheckDone),
+          const SizedBox(height: 18),
+          const Text(
+            '차량이 등록되었습니다',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.w800,
+              color: Colors.white,
+              letterSpacing: -0.4,
+            ),
+          ),
+        ],
       ),
     );
   }

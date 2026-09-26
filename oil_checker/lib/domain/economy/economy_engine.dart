@@ -1,3 +1,4 @@
+// ignore_for_file: dangling_library_doc_comments
 /// 경제성 계산 엔진 (PLAN §4 공식 기반 + 실도로·혼잡 확장)
 ///
 /// - 절약액(원) = (기준 주유소 가격 - 후보 주유소 가격) × 주유량(L)
@@ -11,7 +12,13 @@
 /// 우회거리 규칙:
 /// - 목적지 설정 시: 내위치→후보→목적지 (편도)
 /// - 목적지 미설정 시: 내위치→후보→복귀 (왕복 2배)
-class EconomyResult {
+
+/// 경제성 점수를 가진 객체의 공통 인터페이스 — 타입 안정 정렬용.
+abstract interface class HasScore {
+  double get score;
+}
+
+class EconomyResult implements HasScore {
   /// 내부 생성자 — 팩토리 [calculateEconomy]를 통해 만들 것.
   const EconomyResult._({
     required this.savingAmount,
@@ -40,6 +47,7 @@ class EconomyResult {
   double get detourCost => fuelCost + timeCost;
 
   /// 경제성 점수 = 절약액 - 우회비용
+  @override
   double get score => savingAmount - detourCost;
 
   /// 스코어가 양수일 때만 실제 "절약"
@@ -103,22 +111,9 @@ double computeDetourKm({
   return detour;
 }
 
-/// 경제성 점수 내림차순 정렬
-List<T> rankByEconomy<T>(List<T> stations) {
+/// 경제성 점수 내림차순 정렬 — HasScore 구현체만 허용 (타입 안정).
+List<T> rankByEconomy<T extends HasScore>(List<T> stations) {
   final ranked = List<T>.of(stations);
-  ranked.sort((a, b) {
-    final sa = _scoreOf(a);
-    final sb = _scoreOf(b);
-    return sb.compareTo(sa);
-  });
+  ranked.sort((a, b) => b.score.compareTo(a.score));
   return ranked;
-}
-
-double _scoreOf<T>(T item) {
-  if (item is EconomyResult) return item.score;
-  // dynamic dispatch: score getter가 있으면 사용
-  final dynamic d = item;
-  final score = d.score;
-  if (score is num) return score.toDouble();
-  return 0;
 }

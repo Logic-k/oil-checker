@@ -157,7 +157,7 @@ CarProfile {
 | 상태관리 | **Riverpod 3.x** | 컴파일 타임 안전, 오프라인 우선 아키텍처에 적합 |
 | 로컬 DB | **Drift(SQLite)** | 타입세이프, 마이그레이션, 주유소 캐시/이력/프로필 |
 | 네트워크 | **dio** + `json` 파싱 | Opinet API는 `out=json` 지원 (실측 확인) — XML 파서 불필요 |
-| 지도 | **Kakao 지도** (`kakao_map_plugin` or `kakao_map_flutter`) | 일 30만건 무료, Naver 무료 중단 회피 |
+| 지도 | **flutter_map + OSM** (무료, `tile.openstreetmap.org`) — Kakao 교체 가능 구조 | 일 30만건 무료, Naver 무료 중단 회피, 현재 비용 0 선택 |
 | 위치 | `geolocator` (WGS84) | GPS 취득 |
 | 좌표변환 | `proj4dart` (WGS84↔KATEC) | Opinet 연동 필수 |
 

@@ -1,3 +1,4 @@
+import 'package:animations/animations.dart';
 import 'package:flutter/material.dart';
 import 'package:oil_checker/core/traffic/congestion.dart';
 
@@ -190,6 +191,14 @@ class AppTheme {
         labelStyle: TextStyle(fontWeight: FontWeight.w600, color: textColor),
         shape: const StadiumBorder(),
       ),
+      // 라우트 전환 — 연관 없는 화면 간은 FadeThrough (M3 모션 패턴)
+      pageTransitionsTheme: const PageTransitionsTheme(builders: {
+        TargetPlatform.android: FadeThroughPageTransitionsBuilder(),
+        TargetPlatform.iOS: FadeThroughPageTransitionsBuilder(),
+        TargetPlatform.windows: FadeThroughPageTransitionsBuilder(),
+        TargetPlatform.macOS: FadeThroughPageTransitionsBuilder(),
+        TargetPlatform.linux: FadeThroughPageTransitionsBuilder(),
+      }),
       snackBarTheme: SnackBarThemeData(
         behavior: SnackBarBehavior.floating,
         backgroundColor: isDark ? AppColors.darkSurfaceAlt : AppColors.ink,

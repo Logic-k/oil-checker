@@ -39,17 +39,19 @@ Opinet_API_Free.pdf    # Opinet 무료 API 공식 가이드
 .opencode/omo          # 리서치 아카이브: .omo/ulw-research/<날짜>/SYNTHESIS.md — 구현 현황 분석 + 개선 방향 리서치 결과
 ```
 
-## 3. 현재 상태 (2026-08-23 기준, 검증된 사실)
+## 3. 현재 상태 (2026-08-29 기준, 검증된 사실)
 
 | 항목 | 상태 |
 |---|---|
 | MVP 기능 | ✅ 완성 — 주변 주유소 찾기, 차량 프로필, 경제성 랭킹, 주유 이력, 설정 |
-| 테스트 | ✅ README 기준 69개 통과 (`flutter test`) |
+| 테스트 | ✅ 73개 통과 (`flutter test`) — KATEC 4건 추가 (부산/제주/고정값 회귀) |
 | 정적 분석 | ✅ `lib/` analyze 0 이슈 (tool/katec_probe.dart의 print info만 존재) |
 | 웹 배포 | ✅ Vercel 배포 구축 완료 (`vercel.json` + `api/opinet` 프록시) |
 | Android | ✅ debug/release APK 빌드 절차 확립 (에뮬레이터 프록시 우회법 포함) |
 | API 키 보안 | ✅ 소스 평문 제거 — `String.fromEnvironment('OPINET_API_CODE')` 주입 방식 |
 | 버전관리 | ✅ 2026-08-23 GitHub 업로드로 시작 (`Logic-k/oil-checker`) |
+| 의존성 | ✅ proj4dart 3.0·csv 8.0·geolocator 14.0 major bump 완료 (2026-08-29) |
+| 타입 안정 | ✅ economy `HasScore` sealed 도입, dynamic dispatch 제거 |
 
 ### 완료된 설계 검증
 - Opinet API 인증 파라미터는 `code` (`certkey` 아님 — 실측 확인, 잘못 쓰면 HTTP 200 + 빈 배열)
@@ -59,11 +61,15 @@ Opinet_API_Free.pdf    # Opinet 무료 API 공식 가이드
 ## 4. 개발 명령 (oil_checker/ 디렉토리에서)
 
 ```powershell
+# 키 파일: oil_checker/api-keys.json (gitignored, {"OPINET_API_CODE": "..."}).
+# 프록시는 환경변수 없으면 이 파일을 자동으로 읽는다.
+
 # 웹 개발 (프록시 필수 — Opinet은 CORS 미제공)
-$env:OPINET_API_CODE="<키>"; dart run tool/opinet_proxy.dart 8899   # 터미널 1
+dart run tool/opinet_proxy.dart 8899                                  # 터미널 1
 flutter build web                                                     # 터미널 2 → http://localhost:8899
 
-# Android (에뮬레이터 — 외부 네트워크 차단 환경이면 호스트 프록시 경유)
+# Android 에뮬레이터 — 직접 호출(키 주입) 또는 호스트 프록시 경유
+flutter build apk --debug --dart-define-from-file=api-keys.json
 dart run tool/opinet_proxy.dart 8899
 flutter build apk --debug --dart-define=OPINET_BASE_URL=http://10.0.2.2:8899/opinet
 
@@ -79,27 +85,30 @@ vercel --prod     # oil_checker/ 에서. 커밋 push 시 자동 배포도 가능
 
 1. **API 키 평문 금지** — 소스/문서 어디에도 키를 하드코딩하지 않는다.
    웹: Vercel 환경변수 `OPINET_API_CODE` (서버리스 프록시가 서버측 주입).
-   네이티브: `--dart-define=OPINET_API_CODE=...`.
+   네이티브: `--dart-define=OPINET_API_CODE=...` 또는 로컬 전용 `api-keys.json`
+   (gitignored, `--dart-define-from-file`로 주입).
 2. **좌표계 함정** — Opinet은 WGS84가 아니라 **KATEC(EPSG:5174)**. GPS→KATEC 변환 후 호출,
    KATEC→WGS84 변환 후 지도 표시. 변환은 `katec.dart` 사용 (직접 구현 금지).
 3. **호출 한도** — 일일 1,500건. 동일 좌표 재호출 금지. 캐시(TTL 6h) 우회하는 코드 추가 금지.
 4. **CORS** — 브라우저에서 Opinet 직접 호출 불가. 반드시 `/opinet` 프록시 경로 사용.
 5. **DB 직접 주입 시 한글 깨짐** — sqlite3 CLI의 CP949 문제. 에뮬레이터 검증엔 ASCII 모델명 권장.
 
-## 6. 다음 작업 우선순위 (근거: .omo/ulw-research/20260815-221929/SYNTHESIS.md)
+## 6. 다음 작업 우선순위 (근거: .omo/ulw-research/20260815-221929/SYNTHESIS.md / 20260829 재검증)
 
 P1 (긴급):
-- [ ] **sqlite3_flutter_libs EOL 마이그레이션** — 0.5.x는 EOL, Android 크래시 실사례. 0.6.x/sqlite3 3.x로 이전.
-- [ ] **OSRM 데모 서버 의존 제거** — `router.project-osrm.org`는 SLA 없음(비상업·1req/s). 자체 OSRM 인스턴스 또는 상용 라우팅 API 전환 검토.
+- [x] **sqlite3_flutter_libs EOL 마이그레이션** — 0.5.x EOL 해소: `drift 2.34 + drift_flutter 0.3.1` hooks 번들로 교체 (직접 의존 제거, transitive 0.6.0+eol stub 잔존하나 미사용)
+- [x] **Riverpod legacy 제거** — `StateProvider` legacy import 제거 완료 (Notifier 전환)
+- [x] **의존성 major bump** — proj4dart 3.0, csv 8.0, geolocator 14.0 완료 + KATEC 회귀 8건 통과
+- [x] **economy dynamic 제거** — `HasScore` sealed + `rankByEconomy<T extends HasScore>` 타입 안정화
+- [ ] **OSRM 데모 서버 의존 제거** — `router.project-osrm.org`는 SLA 없음(비상업·1req/s). 후보 10개 축소·스로틀·캐시·fallback으로 완화, 추상화(`RoutingClient`) 및 자체 인스턴스/상용 전환은 Phase 2.
 
-P2 (기술부채):
-- [ ] Riverpod 3에서 legacy `StateProvider` import 제거
-- [ ] economy 엔진의 `dynamic` dispatch 제거 (타입 안정화)
-- [ ] 의존성 major bump: proj4dart 3.0, geolocator 14, csv 8 (KATEC 회귀테스트 선행)
+P2 (기술부채 → Phase 2):
+- [ ] 라우팅 추상화: `RoutingClient` 인터페이스 도입, `OsrmClient` 구현체화, `ROUTING_BASE_URL` 주입
+- [ ] 자가 OSRM Docker 또는 Kakao 다중 경유지 PoC (1일 시간박스)
 
-P3 (제품):
-- [ ] 차별화 재정의 — 오피넷 공식앱 v4.0.1(2026-02)이 "연비 반영 종합 추천" 흡수. PLAN §2.2 후순위(OBD 연동, 즐겨찾기/알림, 고속도로 휴게소 유가) 또는 UX 우위로 대응 방안 결정.
-- [ ] 미구현 Opinet 엔드포인트 활용: lowTop10(최저가 TOP20), avgSidoPrice(시도별 평균) 등 — PLAN §3.1 참조
+P3 (제품 → Phase 3):
+- [ ] 차별화 재정의 — 오피넷 공식앱 v4.0.1(2026-02)이 "연비 반영 종합 추천" 흡수. PLAN §2.2 후순위(OBD 연동, 즐겨찾기/알림, 고속도로 휴게소 유가) 또는 UX 우위("N원 절약" 배지·실연비 추적·목적지 우회)로 대응
+- [ ] 미구현 Opinet 엔드포인트 읽기 전용 추가: lowTop10(최저가 TOP20), avgSidoPrice(시도별 평균) 등 — PLAN §3.1 참조, 3건/일 예산 내
 
 ## 7. 문서 관계도
 
@@ -107,6 +116,8 @@ P3 (제품):
 - 설계 전문(스펙·전략·로드맵): `Oil Checker PLAN.md`
 - 실행 매뉴얼(빌드·배포·디버깅): `oil_checker/README.md`
 - 현황 분석 + 개선 리서치: `.omo/ulw-research/20260815-221929/SYNTHESIS.md` (+ `verify-build-state.md`)
+- 모션/애니메이션 리서치: `.omo/ulw-research/20260925-193225/SYNTHESIS.md`
+  → 실행 스펙(모션 토큰·레시피·체크리스트): `.devin/skills/oil-motion/SKILL.md`
 - UI 구조 스냅샷(과거 검증): 루트 `*.yml`
 
 ## 8. 커밋 규칙

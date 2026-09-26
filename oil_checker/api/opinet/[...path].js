@@ -13,7 +13,14 @@
 // 로컬 테스트: `vercel dev` 실행 후 http://localhost:3000/opinet/aroundAll.do?... 로 확인.
 
 // 앱이 사용하는 Opinet 엔드포인트만 허용한다 (무분별한 프록시 남용·키 도용 방지).
-const ALLOWED_ENDPOINTS = new Set(['aroundAll.do', 'detailById.do']);
+// Phase 3-A: lowTop10 / avgSidoPrice / avgAllPrice 읽기 전용 추가 (3건/일 예산 내)
+const ALLOWED_ENDPOINTS = new Set([
+  'aroundAll.do',
+  'detailById.do',
+  'lowTop10.do',
+  'avgSidoPrice.do',
+  'avgAllPrice.do',
+]);
 
 export default async function handler(req, res) {
   try {

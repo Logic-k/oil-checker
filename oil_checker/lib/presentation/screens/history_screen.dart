@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:oil_checker/core/theme/app_motion.dart';
 import 'package:oil_checker/core/theme/app_theme.dart';
 import 'package:oil_checker/data/db/app_database.dart';
 import 'package:oil_checker/presentation/providers.dart';
 import 'package:oil_checker/presentation/widgets/app_state_views.dart';
+import 'package:oil_checker/presentation/widgets/motion_widgets.dart';
 
 /// 주유이력 화면 (하단 탭 3번)
 ///
@@ -185,9 +187,16 @@ class _HistoryBody extends ConsumerWidget {
           (sum, h) => sum + h.totalAmountWon,
         );
 
-        return ListView(
-          padding: const EdgeInsets.fromLTRB(16, 0, 16, 96),
-          children: [
+        return RefreshIndicator(
+          color: Theme.of(context).brightness == Brightness.dark
+              ? AppColors.best
+              : AppColors.ink,
+          onRefresh: () async =>
+              ref.invalidate(fuelingHistoriesProvider(profile.id)),
+          child: ListView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 96),
+            children: [
             _SummaryCard(
               profile: profile,
               recordCount: histories.length,
@@ -216,13 +225,17 @@ class _HistoryBody extends ConsumerWidget {
               )
             else
               for (var i = 0; i < histories.length; i++) ...[
-                _HistoryTile(
-                  history: histories[i],
-                  kmPerL: _kmPerLAt(histories, i),
+                StaggerIn(
+                  index: i,
+                  child: _HistoryTile(
+                    history: histories[i],
+                    kmPerL: _kmPerLAt(histories, i),
+                  ),
                 ),
                 const SizedBox(height: 8),
               ],
-          ],
+            ],
+          ),
         );
       },
     );
@@ -352,16 +365,39 @@ class _SummaryCard extends ConsumerWidget {
                         crossAxisAlignment: CrossAxisAlignment.baseline,
                         textBaseline: TextBaseline.alphabetic,
                         children: [
-                          Text(
-                            real != null ? real.toStringAsFixed(1) : '—',
-                            style: const TextStyle(
-                              fontSize: 38,
-                              height: 1,
-                              fontWeight: FontWeight.w900,
-                              letterSpacing: -1.6,
-                              fontFeatures: [FontFeature.tabularFigures()],
+                          // 실연비 히어로 숫자 — 카운트업
+                          if (real == null ||
+                              AppMotion.reduceMotion(context))
+                            Text(
+                              real != null
+                                  ? real.toStringAsFixed(1)
+                                  : '—',
+                              style: const TextStyle(
+                                fontSize: 38,
+                                height: 1,
+                                fontWeight: FontWeight.w900,
+                                letterSpacing: -1.6,
+                                fontFeatures: [FontFeature.tabularFigures()],
+                              ),
+                            )
+                          else
+                            TweenAnimationBuilder<double>(
+                              tween: Tween(begin: 0, end: real),
+                              duration: AppMotion.heroCountUp,
+                              curve: AppMotion.curveEnter,
+                              builder: (context, t, _) => Text(
+                                t.toStringAsFixed(1),
+                                style: const TextStyle(
+                                  fontSize: 38,
+                                  height: 1,
+                                  fontWeight: FontWeight.w900,
+                                  letterSpacing: -1.6,
+                                  fontFeatures: [
+                                    FontFeature.tabularFigures()
+                                  ],
+                                ),
+                              ),
                             ),
-                          ),
                           const SizedBox(width: 4),
                           Text(
                             'km/L',
@@ -433,10 +469,22 @@ class _SummaryCard extends ConsumerWidget {
                 const SizedBox(height: 16),
                 SizedBox(
                   height: 70,
-                  child: CustomPaint(
-                    painter: SparklinePainter(values: series),
-                    size: Size.infinite,
-                  ),
+                  child: AppMotion.reduceMotion(context)
+                      ? CustomPaint(
+                          painter: SparklinePainter(values: series),
+                          size: Size.infinite,
+                        )
+                      // 스파크라인 좌→우 드로우 리빌
+                      : TweenAnimationBuilder<double>(
+                          tween: Tween(begin: 0, end: 1),
+                          duration: const Duration(milliseconds: 900),
+                          curve: AppMotion.curveEnter,
+                          builder: (context, t, _) => CustomPaint(
+                            painter:
+                                SparklinePainter(values: series, progress: t),
+                            size: Size.infinite,
+                          ),
+                        ),
                 ),
               ],
             ],
@@ -447,15 +495,19 @@ class _SummaryCard extends ConsumerWidget {
   }
 }
 
-/// 연비 추이 스파크라인
+/// 연비 추이 스파크라인 — [progress]로 좌→우 리빌 애니메이션 지원
 class SparklinePainter extends CustomPainter {
-  const SparklinePainter({required this.values});
+  const SparklinePainter({required this.values, this.progress = 1});
 
   final List<double> values;
+  final double progress;
 
   @override
   void paint(Canvas canvas, Size size) {
     if (values.length < 2) return;
+    if (progress < 1) {
+      canvas.clipRect(Rect.fromLTWH(0, 0, size.width * progress, size.height));
+    }
     final min = values.reduce((a, b) => a < b ? a : b);
     final max = values.reduce((a, b) => a > b ? a : b);
     final range = (max - min).abs() < 0.01 ? 1.0 : max - min;
@@ -505,7 +557,8 @@ class SparklinePainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(SparklinePainter old) => old.values != values;
+  bool shouldRepaint(SparklinePainter old) =>
+      old.values != values || old.progress != progress;
 }
 
 class _HistoryTile extends StatelessWidget {

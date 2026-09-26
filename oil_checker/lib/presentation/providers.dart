@@ -1,3 +1,4 @@
+// ignore_for_file: use_null_aware_elements
 import 'package:dio/dio.dart';
 import 'package:drift_flutter/drift_flutter.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
@@ -13,6 +14,7 @@ import 'package:oil_checker/data/car_spec/car_spec_loader.dart';
 import 'package:oil_checker/data/db/app_database.dart';
 import 'package:oil_checker/data/opinet/opinet_repository.dart';
 import 'package:oil_checker/data/routing/osrm_client.dart';
+import 'package:oil_checker/data/routing/routing_client.dart';
 import 'package:oil_checker/domain/economy/economy_engine.dart';
 
 /// Opinet API 키 (PLAN §3.1 실측 검증 완료)
@@ -61,6 +63,10 @@ final appDatabaseProvider = Provider<AppDatabase>((ref) {
 /// 네트워크가 차단된 환경에서 호스트의 로컬 프록시(`tool/opinet_proxy.dart`)를
 /// 경유해 검증할 때 유용하다 (예: `http://10.0.2.2:8899/opinet`).
 const String _opinetBaseUrlOverride = String.fromEnvironment('OPINET_BASE_URL');
+
+/// 라우팅 base URL 오버라이드 (`--dart-define=ROUTING_BASE_URL=...`)
+/// 자가 OSRM 또는 상용 라우팅으로 교체 시 사용 (기본: router.project-osrm.org).
+const String _routingBaseUrlOverride = String.fromEnvironment('ROUTING_BASE_URL');
 
 /// Opinet HTTP 클라이언트
 ///
@@ -182,6 +188,18 @@ final isPickingLocationProvider = NotifierProvider<IsPickingLocationNotifier, bo
   IsPickingLocationNotifier.new,
 );
 
+/// 목적지 위치 (Phase 3-C) — null이면 왕복(내위치→후보→복귀), 지정 시 편도(내위치→후보→목적지)
+class DestinationNotifier extends Notifier<LatLng?> {
+  @override
+  LatLng? build() => null;
+
+  void set(LatLng? value) => state = value;
+}
+
+final destinationProvider = NotifierProvider<DestinationNotifier, LatLng?>(
+  DestinationNotifier.new,
+);
+
 /// 실시간 GPS 위치 스트림 — 지도 파란 점(내 위치) 실시간 이동용
 ///
 /// TODO(pw) 10m 이상 이동 시마다 갱신된다. 주유소 목록은 새로고침 버튼으로만
@@ -252,18 +270,43 @@ final stationsAroundProvider = FutureProvider<List<OpinetStation>>((ref) async {
   );
 });
 
-/// OSRM 라우팅 클라이언트 — 실제 도로 거리·시간 계산
+/// 라우팅 클라이언트 — 실제 도로 거리·시간 계산 (추상화)
 ///
-/// 공개 데모 서버(무료·키 불필요·CORS 허용)를 사용한다.
-/// 실서비스 전환 시 baseUrl만 교체하면 된다.
-final osrmClientProvider = Provider<OsrmClient>((ref) {
+/// 공개 데모 서버(무료·키 불필요·CORS 허용)를 기본으로 사용.
+/// `--dart-define=ROUTING_BASE_URL=https://your-host` 로 교체 가능.
+/// `RoutingClient` 인터페이스에만 의존하므로 자가 OSRM/상용 API로 교체 가능.
+final routingClientProvider = Provider<RoutingClient>((ref) {
   final dio = Dio(
     BaseOptions(
       connectTimeout: const Duration(seconds: 10),
       receiveTimeout: const Duration(seconds: 20),
     ),
   );
-  return OsrmClient(dio: dio);
+  return OsrmClient(
+    dio: dio,
+    baseUrl: _routingBaseUrlOverride.isNotEmpty
+        ? _routingBaseUrlOverride
+        : OsrmClient.defaultBaseUrl,
+  );
+});
+
+/// @deprecated Use [routingClientProvider] instead — 하위 호환용 alias
+@Deprecated('Use routingClientProvider instead')
+final osrmClientProvider = Provider<OsrmClient>((ref) {
+  final client = ref.watch(routingClientProvider);
+  if (client is OsrmClient) return client;
+  final dio = Dio(
+    BaseOptions(
+      connectTimeout: const Duration(seconds: 10),
+      receiveTimeout: const Duration(seconds: 20),
+    ),
+  );
+  return OsrmClient(
+    dio: dio,
+    baseUrl: _routingBaseUrlOverride.isNotEmpty
+        ? _routingBaseUrlOverride
+        : OsrmClient.defaultBaseUrl,
+  );
 });
 
 /// 교통 혼잡 모델 — 요일·시간대별 가중치
@@ -278,7 +321,7 @@ final congestionModelProvider = Provider<CongestionModel>((ref) {
 const double kTimeValueWonPerMin = 80;
 
 /// 경제성 랭킹 엔트리 — 주유소 + 계산 결과
-class EconomyRankingEntry {
+class EconomyRankingEntry implements HasScore {
   const EconomyRankingEntry({
     required this.station,
     required this.result,
@@ -286,6 +329,9 @@ class EconomyRankingEntry {
 
   final OpinetStation station;
   final EconomyResult result;
+
+  @override
+  double get score => result.score;
 }
 
 /// 경제성 랭킹 결과 — 사용된 연비(실연비/폴백)와 정렬된 목록
@@ -341,7 +387,7 @@ final economyRankingProvider =
   if (stations.isEmpty) return null;
 
   final db = ref.watch(appDatabaseProvider);
-  final osrm = ref.watch(osrmClientProvider);
+  final routing = ref.watch(routingClientProvider);
   final congestion = ref.watch(congestionModelProvider);
   final position = await ref.watch(effectivePositionProvider.future);
 
@@ -392,17 +438,21 @@ final economyRankingProvider =
   final candidateIds = {for (final e in candidates) e.station.uniId};
 
   // --- 실제 도로 거리·시간 (OSRM table: 1회 호출, 후보 N개만) ---
-  // 인덱스 0 = 현재 위치, 1..N = 후보 순서
+  // 인덱스 0 = 현재 위치, 1..N = 후보, (N+1) = 목적지(있을 때)
+  final destination = ref.watch(destinationProvider);
   final myPoint = LatLng(position.latitude, position.longitude);
   final points = [
     myPoint,
     for (final e in candidates) _stationLatLng(e.station),
+    if (destination case final d?) d,
   ];
+  final hasDestination = destination != null;
+  final destIdx = hasDestination ? points.length - 1 : -1;
 
   final ({List<List<double>> distances, List<List<double>> durations}) matrix;
   try {
-    matrix = await osrm.table(points: points);
-  } on OsrmException {
+    matrix = await routing.table(points: points);
+  } on RoutingException {
     // OSRM 실패 시 직선거리 폴백 (기존 동작) — 라우팅 불능이어도 앱은 동작
     return _fallbackRanking(
       stations: stations,
@@ -420,13 +470,23 @@ final economyRankingProvider =
     final entry = candidates[i];
     final matrixIdx = i + 1; // 행렬 인덱스 (0=내위치)
 
-    // 왕복 도로거리 = 내위치→후보 + 후보→내위치
-    final detourKm = (matrix.distances[0][matrixIdx] +
-            matrix.distances[matrixIdx][0]) /
-        1000;
-    // 왕복 예상 시간 (혼잡 반영)
-    final baseDriveMin =
-        (matrix.durations[0][matrixIdx] + matrix.durations[matrixIdx][0]) / 60;
+    // 목적지 있으면 편도(내위치→후보→목적지), 없으면 왕복(내위치→후보→복귀)
+    final double detourKm;
+    final double baseDriveMin;
+    if (hasDestination) {
+      detourKm = (matrix.distances[0][matrixIdx] +
+              matrix.distances[matrixIdx][destIdx]) /
+          1000;
+      baseDriveMin =
+          (matrix.durations[0][matrixIdx] + matrix.durations[matrixIdx][destIdx]) /
+              60;
+    } else {
+      detourKm = (matrix.distances[0][matrixIdx] +
+              matrix.distances[matrixIdx][0]) /
+          1000;
+      baseDriveMin =
+          (matrix.durations[0][matrixIdx] + matrix.durations[matrixIdx][0]) / 60;
+    }
     final driveTimeMin = applyCongestion(
       baseDriveMin: baseDriveMin,
       congestionFactor: congestionFactor,

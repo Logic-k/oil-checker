@@ -127,6 +127,66 @@ class OpinetClient {
     }
   }
 
+  /// 최저가 주유소 TOP 조회 (`lowTop10.do`) — 전국/시도/시군
+  ///
+  /// [area] 2자리 시도 또는 4자리 시군 코드 (null이면 전국), [cnt] 1~20.
+  Future<List<OpinetStation>> fetchLowTop10({
+    String? area,
+    int cnt = 20,
+    String productCode = productGasoline,
+  }) async {
+    assert(cnt >= 1 && cnt <= 20, 'cnt 1~20');
+    try {
+      final qp = <String, dynamic>{
+        'cnt': cnt,
+        'prodcd': productCode,
+        'out': 'json',
+      };
+      if (area != null && area.isNotEmpty) qp['area'] = area;
+      if (apiCode != null) qp['code'] = apiCode;
+      final data = await _getJson('$baseUrl/lowTop10.do', queryParameters: qp);
+      final oil = (data['RESULT'] as Map<String, dynamic>?)?['OIL'] as List<dynamic>?;
+      if (oil == null) throw const OpinetException('RESULT.OIL 응답이 없습니다.');
+      return oil.map((e) => OpinetStation.fromJson(e as Map<String, dynamic>)).toList();
+    } on DioException catch (e) {
+      throw OpinetException('lowTop10 조회 실패: ${e.message}', cause: e);
+    }
+  }
+
+  /// 시도별 평균가 조회 (`avgSidoPrice.do`)
+  Future<List<OpinetAvgPrice>> fetchAvgSidoPrice({
+    String sido = '',
+    String productCode = productGasoline,
+  }) async {
+    try {
+      final qp = <String, dynamic>{'prodcd': productCode, 'out': 'json'};
+      if (sido.isNotEmpty) qp['sido'] = sido;
+      if (apiCode != null) qp['code'] = apiCode;
+      final data = await _getJson('$baseUrl/avgSidoPrice.do', queryParameters: qp);
+      final oil = (data['RESULT'] as Map<String, dynamic>?)?['OIL'] as List<dynamic>?;
+      if (oil == null) return const [];
+      return oil.map((e) => OpinetAvgPrice.fromJson(e as Map<String, dynamic>)).toList();
+    } on DioException catch (e) {
+      throw OpinetException('avgSidoPrice 조회 실패: ${e.message}', cause: e);
+    }
+  }
+
+  /// 전국 평균가 조회 (`avgAllPrice.do`)
+  Future<OpinetAvgPrice?> fetchAvgAllPrice({
+    String productCode = productGasoline,
+  }) async {
+    try {
+      final qp = <String, dynamic>{'prodcd': productCode, 'out': 'json'};
+      if (apiCode != null) qp['code'] = apiCode;
+      final data = await _getJson('$baseUrl/avgAllPrice.do', queryParameters: qp);
+      final oil = (data['RESULT'] as Map<String, dynamic>?)?['OIL'] as List<dynamic>?;
+      if (oil == null || oil.isEmpty) return null;
+      return OpinetAvgPrice.fromJson(oil.first as Map<String, dynamic>);
+    } on DioException catch (e) {
+      throw OpinetException('avgAllPrice 조회 실패: ${e.message}', cause: e);
+    }
+  }
+
   /// Opinet 응답을 JSON Map으로 파싱한다.
   ///
   /// Opinet은 `Content-Type: text/html; charset=utf-8`로 JSON을 반환한다.
@@ -151,5 +211,38 @@ class OpinetClient {
       throw OpinetException('Opinet 응답 형식이 올바르지 않습니다: $decoded');
     }
     return decoded;
+  }
+}
+
+/// 평균가 조회 결과 모델
+class OpinetAvgPrice {
+  const OpinetAvgPrice({
+    required this.prodcd,
+    required this.prodnm,
+    required this.price,
+    required this.diff,
+    required this.tradeDt,
+  });
+
+  final String prodcd;
+  final String prodnm;
+  final double price;
+  final double diff;
+  final String tradeDt;
+
+  factory OpinetAvgPrice.fromJson(Map<String, dynamic> json) {
+    double toDouble(Object? v) {
+      if (v is num) return v.toDouble();
+      if (v is String) return double.tryParse(v) ?? 0;
+      return 0;
+    }
+
+    return OpinetAvgPrice(
+      prodcd: json['PRODCD'] as String? ?? '',
+      prodnm: json['PRODNM'] as String? ?? '',
+      price: toDouble(json['PRICE']),
+      diff: toDouble(json['DIFF']),
+      tradeDt: json['TRADE_DT'] as String? ?? '',
+    );
   }
 }

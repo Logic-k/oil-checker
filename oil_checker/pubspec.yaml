@@ -22,15 +22,22 @@ dependencies:
   # 네트워크
   dio: ^5.7.0
   # 좌표변환 (WGS84 ↔ KATEC)
-  proj4dart: ^2.1.0
+  proj4dart: ^3.0.0
   # 위치
-  geolocator: ^13.0.2
+  geolocator: ^14.0.0
   # 지도 (무료 OSM 기반, Kakao 교체 가능 구조)
   flutter_map: ^8.0.0
   latlong2: ^0.9.1
   # CSV 파싱 (연비 데이터)
-  csv: ^6.0.0
+  csv: ^8.0.0
   drift_flutter: ^0.3.1
+  # 모션 — Material motion 패턴(OpenContainer/FadeThrough/SharedAxis)
+  # 3.0.0은 Dart 3.12 필요 — 현 SDK 3.11이므로 2.x 라인 고정
+  animations: ^2.2.0
+  # 지도 카메라/마커 애니메이션 (flutter_map v8 호환)
+  flutter_map_animations: ^0.10.0
+  # 네이티브+웹 스플래시 (preserve/remove로 첫 프레임 제어)
+  flutter_native_splash: ^2.4.7
 
 dev_dependencies:
   flutter_test:
@@ -46,4 +53,16 @@ flutter:
 
   assets:
     - assets/data/car_fuel_economy.csv
+    - assets/brand/icon-512.png
+
+# 네이티브/웹 스플래시 — ink 배경 + 브랜드 아이콘
+# main.dart의 FlutterNativeSplash.preserve/remove와 짝을 이룬다
+flutter_native_splash:
+  color: "#12181F"
+  image: assets/brand/icon-512.png
+  color_dark: "#0B1016"
+  image_dark: assets/brand/icon-512.png
+  web: true
+  android: true
+  ios: false
 
