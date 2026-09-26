@@ -35,8 +35,9 @@ class DriveScreen extends ConsumerStatefulWidget {
   final String? initialStationId;
 
   /// 3D 표시용 OpenFreeMap 스타일 (무료·키 없음, OSM 벡터 타일).
-  /// 건물 3D에는 'openmaptiles' 소스의 'building' 레이어를 돌출시킨다.
-  static const styleUrl = 'https://tiles.openfreemap.org/styles/dark';
+  /// liberty: 도로 라벨·방패가 잘 보이는 컬러풀 스타일. 건물 3D에는
+  /// 'openmaptiles' 소스의 'building' 레이어를 돌출시킨다.
+  static const styleUrl = 'https://tiles.openfreemap.org/styles/liberty';
 
   static const double _tilt3d = 58;
   static const double _driveZoom = 16;
@@ -73,9 +74,13 @@ class _DriveScreenState extends ConsumerState<DriveScreen> {
   /// 진입 시 pickedLocation — 드라이브 모드가 바꾼 값을 종료 시 복원
   ll2.LatLng? _pickedOnEntry;
 
+  /// dispose에서 ref 사용 금지 → notifier는 initState에서 캐시한다.
+  late final PickedLocationNotifier _pickedNotifier;
+
   @override
   void initState() {
     super.initState();
+    _pickedNotifier = ref.read(pickedLocationProvider.notifier);
     _pickedOnEntry = ref.read(pickedLocationProvider);
     _selectedStationId = widget.initialStationId;
     _islandExpanded = _selectedStationId != null;
@@ -84,7 +89,7 @@ class _DriveScreenState extends ConsumerState<DriveScreen> {
   @override
   void dispose() {
     _cameraGuardTimer?.cancel();
-    ref.read(pickedLocationProvider.notifier).set(_pickedOnEntry);
+    _pickedNotifier.set(_pickedOnEntry);
     super.dispose();
   }
 
@@ -227,18 +232,27 @@ class _DriveScreenState extends ConsumerState<DriveScreen> {
     final map = _map;
     if (map == null) return;
     try {
-      // 3D 건물 — 평면 building 레이어 위, 도로 라벨 아래에 돌출
+      // 3D 건물 — 평면 building 레이어 위, 라벨 계열 아래에 돌출.
+      // 스타일마다 라벨 레이어 id가 달라 첫 심볼성 레이어를 찾아 그 아래에 둔다.
+      final belowLabel = await map.getLayerIds().then(
+        (ids) => ids
+            .map((e) => '$e')
+            .firstWhere(
+              (id) => id.contains('one_way') || id.contains('label'),
+              orElse: () => '',
+            ),
+      );
       await map.addFillExtrusionLayer(
         'openmaptiles',
         'buildings-3d',
         const ml.FillExtrusionLayerProperties(
-          fillExtrusionColor: '#26303C',
-          fillExtrusionOpacity: 0.85,
+          fillExtrusionColor: '#A8B7C4',
+          fillExtrusionOpacity: 0.8,
           fillExtrusionHeight: [ml.Expressions.get, 'render_height'],
           fillExtrusionBase: [ml.Expressions.get, 'render_min_height'],
         ),
         sourceLayer: 'building',
-        belowLayerId: 'road_oneway',
+        belowLayerId: belowLabel.isEmpty ? null : belowLabel,
         minzoom: 13,
       );
       await map.addGeoJsonSource(
@@ -251,9 +265,12 @@ class _DriveScreenState extends ConsumerState<DriveScreen> {
         DriveScreen._stationsSource,
         'station-circles',
         const ml.CircleLayerProperties(
+          // gl-js: interpolate 타입은 표현식 배열 ['linear'], bool 분기는
+          // match(bool 라벨 불가) 대신 case 사용 — 잘못된 표현식은 웹에서
+          // 레이어 추가가 조용히 실패해 마커가 아예 안 그려진다.
           circleRadius: [
             ml.Expressions.interpolate,
-            'linear',
+            ['linear'],
             [ml.Expressions.zoom],
             13,
             5,
@@ -261,13 +278,13 @@ class _DriveScreenState extends ConsumerState<DriveScreen> {
             9,
           ],
           circleColor: [
-            ml.Expressions.match,
+            ml.Expressions.caseExpression,
             [ml.Expressions.get, 'best'],
-            true, '#FFB020', // 경제성 1위 — 골드
-            '#DDE5EC',
+            '#FFB020', // 경제성 1위 — 골드
+            '#31445B',
           ],
-          circleStrokeColor: '#0B1016',
-          circleStrokeWidth: 2,
+          circleStrokeColor: '#FFFFFF',
+          circleStrokeWidth: 2.5,
         ),
       );
       await map.addSymbolLayer(
@@ -285,14 +302,13 @@ class _DriveScreenState extends ConsumerState<DriveScreen> {
           textFont: ['Noto Sans Regular'],
           textSize: 11,
           textColor: [
-            ml.Expressions.match,
+            ml.Expressions.caseExpression,
             [ml.Expressions.get, 'best'],
-            true,
-            '#FFB020',
-            '#C9D3DD',
+            '#C77700',
+            '#31445B',
           ],
-          textHaloColor: '#0B1016',
-          textHaloWidth: 1.4,
+          textHaloColor: '#FFFFFF',
+          textHaloWidth: 1.6,
           textAnchor: 'bottom',
           textOffset: [0.0, -1.3],
           textAllowOverlap: false,
