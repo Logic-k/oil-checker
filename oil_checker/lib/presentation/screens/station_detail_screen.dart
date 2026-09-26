@@ -9,6 +9,8 @@ import 'package:oil_checker/core/opinet/opinet_client.dart';
 import 'package:oil_checker/core/opinet/opinet_station.dart';
 import 'package:oil_checker/core/theme/app_theme.dart';
 import 'package:oil_checker/presentation/providers.dart';
+import 'package:oil_checker/presentation/screens/drive_screen.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:oil_checker/presentation/widgets/app_state_views.dart';
 import 'package:oil_checker/presentation/widgets/station_widgets.dart';
 
@@ -40,8 +42,7 @@ class StationDetailScreen extends ConsumerWidget {
           title: '상세 정보를 불러오지 못했어요',
           message: '$e',
           actionLabel: '다시 시도',
-          onAction: () =>
-              ref.invalidate(stationDetailProvider(station.uniId)),
+          onAction: () => ref.invalidate(stationDetailProvider(station.uniId)),
         ),
         data: (detail) => detail == null
             ? const AppEmptyView(
@@ -150,8 +151,9 @@ class _DetailBody extends StatelessWidget {
               child: Container(
                 decoration: BoxDecoration(
                   color: scheme.surface,
-                  borderRadius:
-                      const BorderRadius.vertical(top: Radius.circular(24)),
+                  borderRadius: const BorderRadius.vertical(
+                    top: Radius.circular(24),
+                  ),
                 ),
                 padding: const EdgeInsets.fromLTRB(20, 22, 20, 120),
                 child: Column(
@@ -187,11 +189,12 @@ class _DetailBody extends StatelessWidget {
                                   if (isBest) ...[
                                     Container(
                                       padding: const EdgeInsets.symmetric(
-                                          horizontal: 7, vertical: 3),
+                                        horizontal: 7,
+                                        vertical: 3,
+                                      ),
                                       decoration: BoxDecoration(
                                         color: AppColors.best,
-                                        borderRadius:
-                                            BorderRadius.circular(6),
+                                        borderRadius: BorderRadius.circular(6),
                                       ),
                                       child: const Text(
                                         '경제 1위',
@@ -253,8 +256,8 @@ class _DetailBody extends StatelessWidget {
                                 : formatDistance(station.distanceM),
                             valueColor: hasSaving
                                 ? (isDark
-                                    ? AppColors.savingBright
-                                    : AppColors.saving)
+                                      ? AppColors.savingBright
+                                      : AppColors.saving)
                                 : null,
                             background: hasSaving
                                 ? AppColors.saving.withValues(alpha: 0.1)
@@ -269,8 +272,9 @@ class _DetailBody extends StatelessWidget {
                     Container(
                       padding: const EdgeInsets.all(16),
                       decoration: BoxDecoration(
-                        borderRadius:
-                            BorderRadius.circular(AppTheme.radiusCard),
+                        borderRadius: BorderRadius.circular(
+                          AppTheme.radiusCard,
+                        ),
                         border: Border.all(color: scheme.outlineVariant),
                       ),
                       child: Column(
@@ -332,20 +336,25 @@ class _DetailBody extends StatelessWidget {
                       Container(
                         clipBehavior: Clip.antiAlias,
                         decoration: BoxDecoration(
-                          borderRadius:
-                              BorderRadius.circular(AppTheme.radiusCard),
+                          borderRadius: BorderRadius.circular(
+                            AppTheme.radiusCard,
+                          ),
                           border: Border.all(color: scheme.outlineVariant),
                         ),
                         child: Column(
                           children: [
                             for (final entry
-                                in detail.prices.entries.toList().asMap().entries)
+                                in detail.prices.entries
+                                    .toList()
+                                    .asMap()
+                                    .entries)
                               Column(
                                 children: [
                                   if (entry.key > 0)
                                     Divider(
-                                        height: 1,
-                                        color: scheme.outlineVariant),
+                                      height: 1,
+                                      color: scheme.outlineVariant,
+                                    ),
                                   _PriceRow(
                                     label: _productLabel(entry.value.key),
                                     price: entry.value.value,
@@ -403,8 +412,7 @@ class _DetailBody extends StatelessWidget {
                     alignment: Alignment.center,
                     decoration: BoxDecoration(
                       color: scheme.surface,
-                      borderRadius:
-                          BorderRadius.circular(AppTheme.radiusCard),
+                      borderRadius: BorderRadius.circular(AppTheme.radiusCard),
                       border: Border.all(color: scheme.outlineVariant),
                     ),
                     child: const Icon(Icons.favorite_border, size: 20),
@@ -412,9 +420,12 @@ class _DetailBody extends StatelessWidget {
                   const SizedBox(width: 10),
                   Expanded(
                     child: FilledButton.icon(
-                      onPressed: () {},
-                      icon: const Icon(Icons.navigation_outlined,
-                          size: 19, color: AppColors.best),
+                      onPressed: () => _showRouteOptions(context, wgs84),
+                      icon: const Icon(
+                        Icons.navigation_outlined,
+                        size: 19,
+                        color: AppColors.best,
+                      ),
                       label: const Text('길안내 시작'),
                     ),
                   ),
@@ -427,14 +438,63 @@ class _DetailBody extends StatelessWidget {
     );
   }
 
+  /// 길안내 진입점 선택 — 외부 네비(카카오맵) 또는 인앱 드라이브 모드.
+  void _showRouteOptions(BuildContext context, Wgs84Coord wgs84) {
+    showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      builder: (sheetContext) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.map_outlined),
+              title: const Text('카카오맵으로 길안내'),
+              subtitle: const Text('카카오맵 앱 또는 웹에서 열기'),
+              onTap: () {
+                Navigator.of(sheetContext).pop();
+                launchUrl(
+                  Uri.parse(
+                    'https://map.kakao.com/link/to/'
+                    '${Uri.encodeComponent(station.name)},'
+                    '${wgs84.latitude},${wgs84.longitude}',
+                  ),
+                  mode: LaunchMode.externalApplication,
+                );
+              },
+            ),
+            ListTile(
+              leading: const Icon(
+                Icons.navigation_outlined,
+                color: AppColors.best,
+              ),
+              title: const Text('드라이브 모드로 보기'),
+              subtitle: const Text('3D 주행 화면에서 이 주유소 보기'),
+              onTap: () {
+                Navigator.of(sheetContext).pop();
+                Navigator.of(context).push(
+                  MaterialPageRoute<void>(
+                    builder: (_) =>
+                        DriveScreen(initialStationId: station.uniId),
+                  ),
+                );
+              },
+            ),
+            const SizedBox(height: 8),
+          ],
+        ),
+      ),
+    );
+  }
+
   static String _productLabel(String prodcd) => switch (prodcd) {
-        OpinetClient.productGasoline => '휘발유',
-        OpinetClient.productPremium => '고급휘발유',
-        OpinetClient.productDiesel => '경유',
-        OpinetClient.productLpg => 'LPG',
-        'C004' => '실내등유',
-        _ => prodcd,
-      };
+    OpinetClient.productGasoline => '휘발유',
+    OpinetClient.productPremium => '고급휘발유',
+    OpinetClient.productDiesel => '경유',
+    OpinetClient.productLpg => 'LPG',
+    'C004' => '실내등유',
+    _ => prodcd,
+  };
 }
 
 class _CircleButton extends StatelessWidget {
