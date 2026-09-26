@@ -11,6 +11,7 @@ import 'package:oil_checker/core/opinet/opinet_station.dart';
 import 'package:oil_checker/core/theme/app_motion.dart';
 import 'package:oil_checker/core/theme/app_theme.dart';
 import 'package:oil_checker/presentation/providers.dart';
+import 'package:oil_checker/presentation/screens/drive_screen.dart';
 import 'package:oil_checker/presentation/screens/station_detail_screen.dart';
 import 'package:oil_checker/presentation/widgets/app_state_views.dart';
 import 'package:oil_checker/presentation/widgets/motion_widgets.dart';
@@ -159,6 +160,17 @@ class _LocationButtons extends StatelessWidget {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
+                button(
+                  icon: Icons.navigation_outlined,
+                  tooltip: '드라이브 모드',
+                  onTap: () => Navigator.of(context).push(
+                    MaterialPageRoute<void>(
+                      builder: (_) => const DriveScreen(),
+                    ),
+                  ),
+                  foreground: AppColors.best,
+                ),
+                const SizedBox(height: 10),
                 button(
                   icon: Icons.edit_location_alt,
                   tooltip: '위치 지정',
