@@ -39,6 +39,7 @@ dependencies:
   # 네이티브+웹 스플래시 (preserve/remove로 첫 프레임 제어)
   flutter_native_splash: ^2.4.7
   maplibre_gl: ^0.27.1
+  url_launcher: ^6.3.2
 
 dev_dependencies:
   flutter_test:

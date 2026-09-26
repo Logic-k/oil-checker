@@ -29,7 +29,10 @@ import 'package:oil_checker/presentation/widgets/motion_widgets.dart';
 /// - 팔로우: GPS 이동 시 카메라가 따라가고, 사용자가 드래그하면 해제
 ///   (우하단 버튼으로 복귀)
 class DriveScreen extends ConsumerStatefulWidget {
-  const DriveScreen({super.key});
+  const DriveScreen({super.key, this.initialStationId});
+
+  /// 상세 화면 등에서 "드라이브 모드로 보기"로 진입할 때 미리 선택할 주유소.
+  final String? initialStationId;
 
   /// 3D 표시용 OpenFreeMap 스타일 (무료·키 없음, OSM 벡터 타일).
   /// 건물 3D에는 'openmaptiles' 소스의 'building' 레이어를 돌출시킨다.
@@ -74,6 +77,8 @@ class _DriveScreenState extends ConsumerState<DriveScreen> {
   void initState() {
     super.initState();
     _pickedOnEntry = ref.read(pickedLocationProvider);
+    _selectedStationId = widget.initialStationId;
+    _islandExpanded = _selectedStationId != null;
   }
 
   @override
@@ -130,8 +135,8 @@ class _DriveScreenState extends ConsumerState<DriveScreen> {
                         data: _islandData(),
                         expanded: _islandExpanded,
                         speedKmh: _speedKmh,
-                        onToggle: () => setState(
-                            () => _islandExpanded = !_islandExpanded),
+                        onToggle: () =>
+                            setState(() => _islandExpanded = !_islandExpanded),
                       ),
                       // 출발지 검색 반경에서 멀어지면 재검색 제안
                       if (_originDrifted) ...[
@@ -250,8 +255,10 @@ class _DriveScreenState extends ConsumerState<DriveScreen> {
             ml.Expressions.interpolate,
             'linear',
             [ml.Expressions.zoom],
-            13, 5,
-            17, 9,
+            13,
+            5,
+            17,
+            9,
           ],
           circleColor: [
             ml.Expressions.match,
@@ -269,7 +276,10 @@ class _DriveScreenState extends ConsumerState<DriveScreen> {
         const ml.SymbolLayerProperties(
           textField: [
             ml.Expressions.concat,
-            [ml.Expressions.toStringExpression, [ml.Expressions.get, 'price']],
+            [
+              ml.Expressions.toStringExpression,
+              [ml.Expressions.get, 'price'],
+            ],
             '원',
           ],
           textFont: ['Noto Sans Regular'],
@@ -277,7 +287,8 @@ class _DriveScreenState extends ConsumerState<DriveScreen> {
           textColor: [
             ml.Expressions.match,
             [ml.Expressions.get, 'best'],
-            true, '#FFB020',
+            true,
+            '#FFB020',
             '#C9D3DD',
           ],
           textHaloColor: '#0B1016',
@@ -307,8 +318,7 @@ class _DriveScreenState extends ConsumerState<DriveScreen> {
     if (map == null || !_styleReady) return;
     final stations =
         ref.read(stationsAroundProvider).value ?? const <OpinetStation>[];
-    final bestId =
-        ref.read(economyRankingProvider).value?.best?.station.uniId;
+    final bestId = ref.read(economyRankingProvider).value?.best?.station.uniId;
 
     map.setGeoJsonSource(DriveScreen._stationsSource, {
       'type': 'FeatureCollection',
@@ -324,10 +334,7 @@ class _DriveScreenState extends ConsumerState<DriveScreen> {
               'price': s.price,
               'best': s.uniId == bestId,
             },
-            'geometry': {
-              'type': 'Point',
-              'coordinates': _stationLngLat(s),
-            },
+            'geometry': {'type': 'Point', 'coordinates': _stationLngLat(s)},
           },
       ],
     });
@@ -389,12 +396,12 @@ class _DriveScreenState extends ConsumerState<DriveScreen> {
     if (origin == null) return;
     final drifted =
         Geolocator.distanceBetween(
-              origin.latitude,
-              origin.longitude,
-              p.latitude,
-              p.longitude,
-            ) >
-            _originDriftM;
+          origin.latitude,
+          origin.longitude,
+          p.latitude,
+          p.longitude,
+        ) >
+        _originDriftM;
     if (drifted != _originDrifted && mounted) {
       setState(() => _originDrifted = drifted);
     }
@@ -446,11 +453,7 @@ class _DriveScreenState extends ConsumerState<DriveScreen> {
     });
   }
 
-  void _flyTo(
-    ml.LatLng target, {
-    double? bearing,
-    Duration? duration,
-  }) {
+  void _flyTo(ml.LatLng target, {double? bearing, Duration? duration}) {
     final map = _map;
     if (map == null || !_styleReady) return;
     final gen = ++_cameraGen;
@@ -577,15 +580,14 @@ class _DriveScreenState extends ConsumerState<DriveScreen> {
     final detourText = detourKm == null
         ? null
         : '왕복 ${detourKm.toStringAsFixed(1)}km'
-            '${driveTimeMin == null ? '' : ' · 약 ${driveTimeMin.round()}분'}';
+              '${driveTimeMin == null ? '' : ' · 약 ${driveTimeMin.round()}분'}';
 
     return DriveIslandData(
       title: station.name,
       subtitle:
           '${AppColors.brandLabel(station.brandCode)} · 내 위치에서 ${formatDistance(station.distanceM)}',
       priceText: '${formatWon(station.price)}원/L',
-      savingsText:
-          score != null && score > 0 ? '+${formatWon(score)}원' : null,
+      savingsText: score != null && score > 0 ? '+${formatWon(score)}원' : null,
       detailText: detourText,
     );
   }
