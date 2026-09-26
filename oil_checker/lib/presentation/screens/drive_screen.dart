@@ -2,7 +2,8 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:geolocator/geolocator.dart' show Position;
+import 'package:geolocator/geolocator.dart';
+import 'package:latlong2/latlong.dart' as ll2;
 import 'package:maplibre_gl/maplibre_gl.dart' as ml;
 import 'package:oil_checker/core/coordinate/katec.dart';
 import 'package:oil_checker/core/format/distance_format.dart';
@@ -42,14 +43,39 @@ class DriveScreen extends ConsumerStatefulWidget {
 }
 
 class _DriveScreenState extends ConsumerState<DriveScreen> {
+  /// 검색 기준에서 이 거리(m) 이상 벗어나면 "이 근처 다시 찾기" 노출.
+  /// Opinet 검색 반경 5km의 절반 — 겹치는 결과를 유지하며 갱신.
+  static const double _originDriftM = 2500;
+
   ml.MapLibreMapController? _map;
   bool _styleReady = false;
   bool _is3d = true;
   bool _following = true;
   bool _programmaticCamera = false;
   bool _islandExpanded = false;
+  bool _originDrifted = false;
   String? _selectedStationId;
   double? _speedKmh;
+  Position? _lastGpsFix;
+
+  /// 진행 중인 프로그램 카메라 이동의 세대 — 겹친 애니메이션이
+  /// 플래그를 중간에 해제해 사용자 드래그로 오인하는 것을 방지.
+  int _cameraGen = 0;
+
+  /// 진입 시 pickedLocation — 드라이브 모드가 바꾼 값을 종료 시 복원
+  ll2.LatLng? _pickedOnEntry;
+
+  @override
+  void initState() {
+    super.initState();
+    _pickedOnEntry = ref.read(pickedLocationProvider);
+  }
+
+  @override
+  void dispose() {
+    ref.read(pickedLocationProvider.notifier).set(_pickedOnEntry);
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -91,12 +117,22 @@ class _DriveScreenState extends ConsumerState<DriveScreen> {
                 alignment: Alignment.topCenter,
                 child: Padding(
                   padding: const EdgeInsets.only(top: 6),
-                  child: DriveIsland(
-                    data: _islandData(),
-                    expanded: _islandExpanded,
-                    speedKmh: _speedKmh,
-                    onToggle: () => setState(
-                        () => _islandExpanded = !_islandExpanded),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      DriveIsland(
+                        data: _islandData(),
+                        expanded: _islandExpanded,
+                        speedKmh: _speedKmh,
+                        onToggle: () => setState(
+                            () => _islandExpanded = !_islandExpanded),
+                      ),
+                      // 출발지 검색 반경에서 멀어지면 재검색 제안
+                      if (_originDrifted) ...[
+                        const SizedBox(height: 8),
+                        _researchButton(),
+                      ],
+                    ],
                   ),
                 ),
               ),
@@ -252,6 +288,9 @@ class _DriveScreenState extends ConsumerState<DriveScreen> {
     if (mounted) {
       setState(() => _styleReady = true);
       _pushStations();
+      // 지도 준비 전에 들어온 마지막 GPS fix 재생 — 퍽이 안 뜨는 사각지대 해소
+      final last = _lastGpsFix;
+      if (last != null) _onGpsFix(last);
     }
   }
 
@@ -310,6 +349,8 @@ class _DriveScreenState extends ConsumerState<DriveScreen> {
   // ── GPS / 카메라 팔로우 ────────────────────────────────────────
 
   void _onGpsFix(Position p) {
+    _lastGpsFix = p;
+    _updateOriginDrift(p);
     final target = ml.LatLng(p.latitude, p.longitude);
     _map?.updateManualLocation(
       ml.ManualLocationUpdate(
@@ -330,9 +371,83 @@ class _DriveScreenState extends ConsumerState<DriveScreen> {
     }
   }
 
-  Future<void> _flyTo(ml.LatLng target, {double? bearing}) async {
+  /// 차의 최신 위치 — GPS 스트림 우선, 첫 fix 전엔 검색 기준 위치로 폴백
+  Position? _latestCarPosition() =>
+      ref.read(gpsPositionProvider).value ??
+      ref.read(effectivePositionProvider).value;
+
+  /// 검색 기준과의 거리 갱신 — 멀어지면 재검색 버튼 노출
+  /// (검색 자체는 수동: AGENTS.md §5-3 API 호출 한도 정책 유지)
+  void _updateOriginDrift(Position p) {
+    final origin = ref.read(effectivePositionProvider).value;
+    if (origin == null) return;
+    final drifted =
+        Geolocator.distanceBetween(
+              origin.latitude,
+              origin.longitude,
+              p.latitude,
+              p.longitude,
+            ) >
+            _originDriftM;
+    if (drifted != _originDrifted && mounted) {
+      setState(() => _originDrifted = drifted);
+    }
+  }
+
+  /// "이 근처 다시 찾기" — 검색 기준을 현재 차 위치로 이동 (수동 갱신)
+  Widget _researchButton() {
+    return Pressable(
+      child: Material(
+        color: AppColors.best,
+        borderRadius: BorderRadius.circular(999),
+        elevation: 3,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(999),
+          onTap: _searchHere,
+          child: const Padding(
+            padding: EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.refresh, size: 15, color: AppColors.ink),
+                SizedBox(width: 6),
+                Text(
+                  '이 근처 주유소 다시 찾기',
+                  style: TextStyle(
+                    fontSize: 12.5,
+                    fontWeight: FontWeight.w800,
+                    color: AppColors.ink,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _searchHere() {
+    final p = _latestCarPosition();
+    if (p == null) return;
+    // 검색 기준 이동 — pickedLocation 변경이 주유소·랭킹 재조회를 유발한다
+    ref
+        .read(pickedLocationProvider.notifier)
+        .set(ll2.LatLng(p.latitude, p.longitude));
+    setState(() {
+      _originDrifted = false;
+      _selectedStationId = null;
+    });
+  }
+
+  Future<void> _flyTo(
+    ml.LatLng target, {
+    double? bearing,
+    Duration? duration,
+  }) async {
     final map = _map;
     if (map == null || !_styleReady) return;
+    final gen = ++_cameraGen;
     _programmaticCamera = true;
     try {
       await map.easeCamera(
@@ -346,10 +461,11 @@ class _DriveScreenState extends ConsumerState<DriveScreen> {
         ),
         // GPS 추적은 등속 보간이 끊김 없이 부드럽다
         interpolation: ml.CameraAnimationInterpolation.linear,
-        duration: const Duration(milliseconds: 900),
+        duration: duration ?? const Duration(milliseconds: 900),
       );
     } finally {
-      _programmaticCamera = false;
+      // 나중에 시작된 카메라 이동이 있으면 플래그 해제를 그쪽에 맡긴다
+      if (gen == _cameraGen) _programmaticCamera = false;
     }
   }
 
@@ -362,8 +478,7 @@ class _DriveScreenState extends ConsumerState<DriveScreen> {
 
   Future<void> _recenter() async {
     setState(() => _following = true);
-    final p = ref.read(effectivePositionProvider).value ??
-        ref.read(gpsPositionProvider).value;
+    final p = _latestCarPosition();
     if (p != null) {
       await _flyTo(
         ml.LatLng(p.latitude, p.longitude),
@@ -374,25 +489,13 @@ class _DriveScreenState extends ConsumerState<DriveScreen> {
 
   Future<void> _toggle3d() async {
     setState(() => _is3d = !_is3d);
-    final p = ref.read(effectivePositionProvider).value ??
-        ref.read(gpsPositionProvider).value;
+    final p = _latestCarPosition();
     if (p != null) {
-      _programmaticCamera = true;
-      try {
-        await _map?.easeCamera(
-          ml.CameraUpdate.newCameraPosition(
-            ml.CameraPosition(
-              target: ml.LatLng(p.latitude, p.longitude),
-              zoom: DriveScreen._driveZoom,
-              tilt: _is3d ? DriveScreen._tilt3d : 0,
-              bearing: _map?.cameraPosition?.bearing ?? 0,
-            ),
-          ),
-          duration: const Duration(milliseconds: 600),
-        );
-      } finally {
-        _programmaticCamera = false;
-      }
+      await _flyTo(
+        ml.LatLng(p.latitude, p.longitude),
+        bearing: _map?.cameraPosition?.bearing ?? 0,
+        duration: const Duration(milliseconds: 600),
+      );
     }
   }
 
