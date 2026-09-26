@@ -219,22 +219,24 @@ final gpsPositionProvider = StreamProvider<Position>((ref) {
 /// 주변 주유소 조회와 경제성 랭킹이 이 제공자를 사용한다.
 /// [pickedLocationProvider]가 바뀌면 주유소·가격 계산이 재실행된다.
 final effectivePositionProvider = FutureProvider<Position>((ref) async {
-  final gps = await ref.watch(currentLocationProvider.future);
+  // 지정 위치가 있으면 GPS 조회 없이 바로 사용 — 위치 권한 거부
+  // (데스크톱 브라우저 등)에서도 지도·검색이 동작하도록 한다.
   final picked = ref.watch(pickedLocationProvider);
-  if (picked == null) return gps;
-  // 지정 위치를 Position으로 변환 (가격·거리 계산이 GPS 좌표계 사용)
-  return Position(
-    latitude: picked.latitude,
-    longitude: picked.longitude,
-    timestamp: DateTime.now(),
-    accuracy: 0,
-    altitude: 0,
-    altitudeAccuracy: 0,
-    heading: 0,
-    headingAccuracy: 0,
-    speed: 0,
-    speedAccuracy: 0,
-  );
+  if (picked != null) {
+    return Position(
+      latitude: picked.latitude,
+      longitude: picked.longitude,
+      timestamp: DateTime.now(),
+      accuracy: 0,
+      altitude: 0,
+      altitudeAccuracy: 0,
+      heading: 0,
+      headingAccuracy: 0,
+      speed: 0,
+      speedAccuracy: 0,
+    );
+  }
+  return ref.watch(currentLocationProvider.future);
 });
 
 /// 활성 차량의 기름 종류에 맞는 Opinet 제품 코드

@@ -26,7 +26,7 @@ class HomeScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final locationAsync = ref.watch(currentLocationProvider);
+    final locationAsync = ref.watch(effectivePositionProvider);
     final stationsAsync = ref.watch(stationsAroundProvider);
     final rankingAsync = ref.watch(economyRankingProvider);
     final ranking = rankingAsync.value;
@@ -46,6 +46,14 @@ class HomeScreen extends ConsumerWidget {
         message: '내 주변 주유소를 찾으려면\n위치 접근을 허용해주세요.',
         actionLabel: '다시 시도',
         onAction: () => ref.invalidate(currentLocationProvider),
+        // 권한 없이도 둘러보기 — 서울 중심으로 열고 위치 지정 모드 진입
+        secondaryLabel: '지도에서 위치 지정',
+        onSecondary: () {
+          ref
+              .read(pickedLocationProvider.notifier)
+              .set(const LatLng(37.5665, 126.9780)); // 서울 시청
+          ref.read(isPickingLocationProvider.notifier).set(true);
+        },
       ),
       data: (position) => Stack(
         children: [
