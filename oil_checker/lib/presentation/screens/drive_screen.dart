@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
@@ -62,6 +63,10 @@ class _DriveScreenState extends ConsumerState<DriveScreen> {
   /// 플래그를 중간에 해제해 사용자 드래그로 오인하는 것을 방지.
   int _cameraGen = 0;
 
+  /// 프로그램 카메라 이동의 무시 윈도우 — 웹의 easeCamera는
+  /// fire-and-forget이라 future 해결이 아니라 시간 경과로 해제.
+  Timer? _cameraGuardTimer;
+
   /// 진입 시 pickedLocation — 드라이브 모드가 바꾼 값을 종료 시 복원
   ll2.LatLng? _pickedOnEntry;
 
@@ -73,6 +78,7 @@ class _DriveScreenState extends ConsumerState<DriveScreen> {
 
   @override
   void dispose() {
+    _cameraGuardTimer?.cancel();
     ref.read(pickedLocationProvider.notifier).set(_pickedOnEntry);
     super.dispose();
   }
@@ -440,17 +446,25 @@ class _DriveScreenState extends ConsumerState<DriveScreen> {
     });
   }
 
-  Future<void> _flyTo(
+  void _flyTo(
     ml.LatLng target, {
     double? bearing,
     Duration? duration,
-  }) async {
+  }) {
     final map = _map;
     if (map == null || !_styleReady) return;
     final gen = ++_cameraGen;
     _programmaticCamera = true;
-    try {
-      await map.easeCamera(
+    final anim = duration ?? const Duration(milliseconds: 900);
+    // maplibre_gl_web의 easeCamera는 fire-and-forget — future 해결 시점이
+    // 아니라 애니메이션 시간(+여유) 경과 후 플래그를 내린다. 겹친 호출은
+    // 최신 세대만이 해제권을 갖는다.
+    _cameraGuardTimer?.cancel();
+    _cameraGuardTimer = Timer(anim + const Duration(milliseconds: 250), () {
+      if (gen == _cameraGen) _programmaticCamera = false;
+    });
+    unawaited(
+      map.easeCamera(
         ml.CameraUpdate.newCameraPosition(
           ml.CameraPosition(
             target: target,
@@ -461,12 +475,9 @@ class _DriveScreenState extends ConsumerState<DriveScreen> {
         ),
         // GPS 추적은 등속 보간이 끊김 없이 부드럽다
         interpolation: ml.CameraAnimationInterpolation.linear,
-        duration: duration ?? const Duration(milliseconds: 900),
-      );
-    } finally {
-      // 나중에 시작된 카메라 이동이 있으면 플래그 해제를 그쪽에 맡긴다
-      if (gen == _cameraGen) _programmaticCamera = false;
-    }
+        duration: anim,
+      ),
+    );
   }
 
   /// 사용자 드래그로 팔로우 해제 — 프로그램 카메라 이동은 무시
@@ -476,22 +487,22 @@ class _DriveScreenState extends ConsumerState<DriveScreen> {
     }
   }
 
-  Future<void> _recenter() async {
+  void _recenter() {
     setState(() => _following = true);
     final p = _latestCarPosition();
     if (p != null) {
-      await _flyTo(
+      _flyTo(
         ml.LatLng(p.latitude, p.longitude),
         bearing: _map?.cameraPosition?.bearing,
       );
     }
   }
 
-  Future<void> _toggle3d() async {
+  void _toggle3d() {
     setState(() => _is3d = !_is3d);
     final p = _latestCarPosition();
     if (p != null) {
-      await _flyTo(
+      _flyTo(
         ml.LatLng(p.latitude, p.longitude),
         bearing: _map?.cameraPosition?.bearing ?? 0,
         duration: const Duration(milliseconds: 600),

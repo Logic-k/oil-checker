@@ -29,54 +29,50 @@ class DriveIsland extends StatelessWidget {
     final reduce = AppMotion.reduceMotion(context);
     final maxWidth = MediaQuery.sizeOf(context).width - 32;
 
-    return Center(
-      child: Pressable(
-        child: GestureDetector(
-          onTap: onToggle,
-          child: AnimatedSize(
-            duration: reduce
-                ? Duration.zero
-                : const Duration(milliseconds: 320),
+    // 부모가 Align(topCenter)로 배치 — 여기서 다시 Center를 쓰면
+    // 확장 공간을 채우며 수직 중앙으로 이동해 버린다.
+    return Pressable(
+      child: GestureDetector(
+        onTap: onToggle,
+        child: AnimatedSize(
+          duration:
+              reduce ? Duration.zero : const Duration(milliseconds: 320),
+          curve: AppMotion.curveEnter,
+          alignment: Alignment.topCenter,
+          child: AnimatedContainer(
+            duration:
+                reduce ? Duration.zero : const Duration(milliseconds: 320),
             curve: AppMotion.curveEnter,
-            alignment: Alignment.topCenter,
-            child: AnimatedContainer(
-              duration: reduce
-                  ? Duration.zero
-                  : const Duration(milliseconds: 320),
-              curve: AppMotion.curveEnter,
-              constraints: BoxConstraints(
-                minWidth: expanded ? maxWidth : 0,
-                maxWidth: maxWidth,
+            constraints: BoxConstraints(
+              minWidth: expanded ? maxWidth : 0,
+              maxWidth: maxWidth,
+            ),
+            decoration: BoxDecoration(
+              color: AppColors.ink,
+              borderRadius: BorderRadius.circular(expanded ? 24 : 999),
+              border: Border.all(
+                color: Colors.white.withValues(alpha: 0.08),
               ),
-              decoration: BoxDecoration(
-                color: AppColors.ink,
-                borderRadius:
-                    BorderRadius.circular(expanded ? 24 : 999),
-                border: Border.all(
-                  color: Colors.white.withValues(alpha: 0.08),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.4),
+                  blurRadius: 24,
+                  offset: const Offset(0, 8),
                 ),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.4),
-                    blurRadius: 24,
-                    offset: const Offset(0, 8),
-                  ),
-                ],
-              ),
-              clipBehavior: Clip.antiAlias,
-              child: AnimatedSwitcher(
-                duration: reduce
-                    ? Duration.zero
-                    : const Duration(milliseconds: 180),
-                child: expanded
-                    ? _IslandExpanded(
-                        key: const ValueKey('expanded'), data: data)
-                    : _IslandCollapsed(
-                        key: const ValueKey('collapsed'),
-                        data: data,
-                        speedKmh: speedKmh,
-                      ),
-              ),
+              ],
+            ),
+            clipBehavior: Clip.antiAlias,
+            child: AnimatedSwitcher(
+              duration:
+                  reduce ? Duration.zero : const Duration(milliseconds: 180),
+              child: expanded
+                  ? _IslandExpanded(
+                      key: const ValueKey('expanded'), data: data)
+                  : _IslandCollapsed(
+                      key: const ValueKey('collapsed'),
+                      data: data,
+                      speedKmh: speedKmh,
+                    ),
             ),
           ),
         ),
