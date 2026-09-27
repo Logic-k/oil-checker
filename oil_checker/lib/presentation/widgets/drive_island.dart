@@ -27,7 +27,11 @@ class DriveIsland extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final reduce = AppMotion.reduceMotion(context);
-    final maxWidth = MediaQuery.sizeOf(context).width - 32;
+    // 우측 라운드 버튼(닫기·3D·리센터)과 겹치지 않게 상한을 둔다.
+    final maxWidth = (MediaQuery.sizeOf(context).width - 96).clamp(
+      280.0,
+      420.0,
+    );
 
     // 부모가 Align(topCenter)로 배치 — 여기서 다시 Center를 쓰면
     // 확장 공간을 채우며 수직 중앙으로 이동해 버린다.
@@ -35,13 +39,13 @@ class DriveIsland extends StatelessWidget {
       child: GestureDetector(
         onTap: onToggle,
         child: AnimatedSize(
-          duration:
-              reduce ? Duration.zero : const Duration(milliseconds: 320),
+          duration: reduce ? Duration.zero : const Duration(milliseconds: 320),
           curve: AppMotion.curveEnter,
           alignment: Alignment.topCenter,
           child: AnimatedContainer(
-            duration:
-                reduce ? Duration.zero : const Duration(milliseconds: 320),
+            duration: reduce
+                ? Duration.zero
+                : const Duration(milliseconds: 320),
             curve: AppMotion.curveEnter,
             constraints: BoxConstraints(
               minWidth: expanded ? maxWidth : 0,
@@ -50,9 +54,7 @@ class DriveIsland extends StatelessWidget {
             decoration: BoxDecoration(
               color: AppColors.ink,
               borderRadius: BorderRadius.circular(expanded ? 24 : 999),
-              border: Border.all(
-                color: Colors.white.withValues(alpha: 0.08),
-              ),
+              border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
               boxShadow: [
                 BoxShadow(
                   color: Colors.black.withValues(alpha: 0.4),
@@ -63,11 +65,11 @@ class DriveIsland extends StatelessWidget {
             ),
             clipBehavior: Clip.antiAlias,
             child: AnimatedSwitcher(
-              duration:
-                  reduce ? Duration.zero : const Duration(milliseconds: 180),
+              duration: reduce
+                  ? Duration.zero
+                  : const Duration(milliseconds: 180),
               child: expanded
-                  ? _IslandExpanded(
-                      key: const ValueKey('expanded'), data: data)
+                  ? _IslandExpanded(key: const ValueKey('expanded'), data: data)
                   : _IslandCollapsed(
                       key: const ValueKey('collapsed'),
                       data: data,
@@ -115,11 +117,7 @@ class DriveIslandData {
 enum DriveIslandStatus { loading, error, empty, ready }
 
 class _IslandCollapsed extends StatelessWidget {
-  const _IslandCollapsed({
-    super.key,
-    required this.data,
-    this.speedKmh,
-  });
+  const _IslandCollapsed({super.key, required this.data, this.speedKmh});
 
   final DriveIslandData data;
   final double? speedKmh;
@@ -170,8 +168,7 @@ class _IslandCollapsed extends StatelessWidget {
           if (speed != null && speed > 0) ...[
             const SizedBox(width: 8),
             Container(
-              padding: const EdgeInsets.symmetric(
-                  horizontal: 7, vertical: 2),
+              padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
               decoration: BoxDecoration(
                 color: Colors.white.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(999),
@@ -207,8 +204,7 @@ class _IslandExpanded extends StatelessWidget {
         children: [
           Row(
             children: [
-              Icon(Icons.local_gas_station,
-                  size: 15, color: AppColors.best),
+              Icon(Icons.local_gas_station, size: 15, color: AppColors.best),
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
@@ -223,8 +219,11 @@ class _IslandExpanded extends StatelessWidget {
                   ),
                 ),
               ),
-              const Icon(Icons.keyboard_arrow_up,
-                  size: 18, color: Colors.white38),
+              const Icon(
+                Icons.keyboard_arrow_up,
+                size: 18,
+                color: Colors.white38,
+              ),
             ],
           ),
           if (data.subtitle != null) ...[
@@ -250,8 +249,7 @@ class _IslandExpanded extends StatelessWidget {
                     TextSpan(
                       children: [
                         TextSpan(
-                          text: data.priceText!
-                              .replaceAll('원/L', ''),
+                          text: data.priceText!.replaceAll('원/L', ''),
                           style: const TextStyle(
                             fontSize: 26,
                             fontWeight: FontWeight.w900,
@@ -264,8 +262,7 @@ class _IslandExpanded extends StatelessWidget {
                           style: TextStyle(
                             fontSize: 13,
                             fontWeight: FontWeight.w600,
-                            color:
-                                Colors.white.withValues(alpha: 0.6),
+                            color: Colors.white.withValues(alpha: 0.6),
                           ),
                         ),
                       ],
@@ -275,10 +272,11 @@ class _IslandExpanded extends StatelessWidget {
                 if (data.savingsText != null)
                   Container(
                     padding: const EdgeInsets.symmetric(
-                        horizontal: 10, vertical: 6),
+                      horizontal: 10,
+                      vertical: 6,
+                    ),
                     decoration: BoxDecoration(
-                      color:
-                          AppColors.best.withValues(alpha: 0.14),
+                      color: AppColors.best.withValues(alpha: 0.14),
                       borderRadius: BorderRadius.circular(10),
                     ),
                     child: Text(
@@ -294,9 +292,7 @@ class _IslandExpanded extends StatelessWidget {
             ),
             if (data.detailText != null) ...[
               const SizedBox(height: 12),
-              Divider(
-                  color: Colors.white.withValues(alpha: 0.1),
-                  height: 1),
+              Divider(color: Colors.white.withValues(alpha: 0.1), height: 1),
               const SizedBox(height: 12),
               Text(
                 data.detailText!,
