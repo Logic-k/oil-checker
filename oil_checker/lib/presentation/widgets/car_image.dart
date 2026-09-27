@@ -2,8 +2,12 @@ import 'package:flutter/material.dart';
 
 import '../../core/theme/app_theme.dart';
 
-/// 차종 → 실루엣 이미지 에셋 매핑
-String carImageAsset(String vehicleType, String modelName) {
+/// 차종 → 실루엣 이미지 에셋 매핑.
+/// [vehicleType] = CSV 차종 열(승용차/화물차/승합차…),
+/// [fuelType] = CSV 유형 열(일반형/다목적형/밴형/화물…).
+/// 이름 키워드가 차종 분류보다 우선한다.
+String carImageAsset(String vehicleType, String modelName,
+    {String fuelType = ''}) {
   const vans = [
     '카니발', '스타리아', '스타렉스', '카운티', '시에나', '마이티',
     '파비스', 'v클래스', 'v클래스', '트라픽', '마스터', '일렉트릭버스',
@@ -29,22 +33,19 @@ String carImageAsset(String vehicleType, String modelName) {
   final n = modelName.toLowerCase();
   if (trucks.any(n.contains)) return 'assets/cars/truck.png';
   if (vans.any(modelName.contains)) return 'assets/cars/van.png';
-  if (vehicleType.isEmpty && suvs.any(n.contains)) {
-    return 'assets/cars/suv.png';
+  if (suvs.any(n.contains)) return 'assets/cars/suv.png';
+  // 차종(vehicleType): 승용차/화물차/승합차/특수차…
+  // 유형(fuelType): 일반형/다목적형/밴형/화물/승합/덤프형/승용겸화물형…
+  const truckTypes = ['화물차', '화물', '덤프형', '승용겸화물형', '특수차', '견인차'];
+  const vanTypes = ['승합차', '승합', '밴형'];
+  if (truckTypes.contains(vehicleType) || truckTypes.contains(fuelType)) {
+    return 'assets/cars/truck.png';
   }
-  switch (vehicleType) {
-    case '화물':
-    case '덤프형':
-    case '승용겸화물형':
-      return 'assets/cars/truck.png';
-    case '승합':
-    case '밴형':
-      return 'assets/cars/van.png';
-    case '다목적형':
-      return 'assets/cars/suv.png';
-    default:
-      return 'assets/cars/sedan.png';
+  if (vanTypes.contains(vehicleType) || vanTypes.contains(fuelType)) {
+    return 'assets/cars/van.png';
   }
+  if (fuelType == '다목적형') return 'assets/cars/suv.png';
+  return 'assets/cars/sedan.png';
 }
 
 /// 선택된 차량의 실루엣 카드 이미지 — 골드 실루엣 + 잉크 배경.
@@ -53,11 +54,13 @@ class CarImage extends StatelessWidget {
   const CarImage({
     super.key,
     required this.vehicleType,
+    this.fuelType = '',
     required this.modelName,
     this.height = 96,
   });
 
   final String vehicleType;
+  final String fuelType;
   final String modelName;
   final double height;
 
@@ -66,7 +69,7 @@ class CarImage extends StatelessWidget {
     return ClipRRect(
       borderRadius: BorderRadius.circular(12),
       child: Image.asset(
-        carImageAsset(vehicleType, modelName),
+        carImageAsset(vehicleType, modelName, fuelType: fuelType),
         height: height,
         fit: BoxFit.cover,
         alignment: Alignment.center,

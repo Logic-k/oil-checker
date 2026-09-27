@@ -288,6 +288,8 @@ class _CarSetupScreenState extends ConsumerState<CarSetupScreen> {
                       if (_tankAutoFilled) {
                         _tankController.text =
                             cap!.toStringAsFixed(0);
+                      } else if (_selectedIsEv) {
+                        _tankController.clear();
                       }
                     });
                   },
@@ -322,6 +324,7 @@ class _CarSetupScreenState extends ConsumerState<CarSetupScreen> {
             children: [
               CarImage(
                 vehicleType: selected.vehicleType,
+                fuelType: selected.fuelType,
                 modelName: selected.modelName,
                 height: 96,
               ),
