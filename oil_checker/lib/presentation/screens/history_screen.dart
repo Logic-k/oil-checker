@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:oil_checker/core/theme/app_motion.dart';
 import 'package:oil_checker/core/theme/app_theme.dart';
@@ -161,6 +162,13 @@ class HistoryScreen extends ConsumerWidget {
               ? '일반 주유소'
               : stationName.text.trim(),
         );
+
+    if (context.mounted) {
+      HapticFeedback.lightImpact();
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('주유 기록을 저장했어요')),
+      );
+    }
   }
 }
 

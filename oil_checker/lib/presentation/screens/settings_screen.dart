@@ -7,6 +7,7 @@ import 'package:oil_checker/presentation/screens/car_setup_screen.dart';
 import 'package:oil_checker/core/theme/app_motion.dart';
 import 'package:oil_checker/presentation/ui_prefs.dart';
 import 'package:oil_checker/presentation/widgets/app_state_views.dart';
+import 'package:oil_checker/presentation/widgets/car_image.dart';
 import 'package:oil_checker/presentation/widgets/motion_widgets.dart';
 
 /// 설정 화면 (하단 탭 4번)
@@ -31,6 +32,7 @@ class SettingsScreen extends ConsumerWidget {
               padding: const EdgeInsets.fromLTRB(16, 0, 16, 20),
               child: _ActiveCarCard(
                 modelName: active.modelName,
+                imageAsset: carImageAsset('', active.modelName),
                 subtitle: '${_fuelLabel(active.fuelType)} · '
                     '${(active.latestRecordedKmPerL ?? active.manualFuelEfficiency ?? active.avgFuelEfficiency).toStringAsFixed(1)} km/L · '
                     '${active.tankSizeL.toStringAsFixed(0)}L',
@@ -193,9 +195,14 @@ class SettingsScreen extends ConsumerWidget {
 
 /// 활성 차량 하이라이트 카드
 class _ActiveCarCard extends StatelessWidget {
-  const _ActiveCarCard({required this.modelName, required this.subtitle});
+  const _ActiveCarCard({
+    required this.modelName,
+    required this.imageAsset,
+    required this.subtitle,
+  });
 
   final String modelName;
+  final String imageAsset;
   final String subtitle;
 
   @override
@@ -208,15 +215,25 @@ class _ActiveCarCard extends StatelessWidget {
       ),
       child: Row(
         children: [
-          Container(
-            width: 50,
-            height: 50,
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
-              color: AppColors.best,
-              borderRadius: BorderRadius.circular(14),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(14),
+            child: Image.asset(
+              imageAsset,
+              width: 50,
+              height: 50,
+              fit: BoxFit.cover,
+              errorBuilder: (_, _, _) => Container(
+                width: 50,
+                height: 50,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: AppColors.best,
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child:
+                    const Icon(Icons.directions_car, color: AppColors.ink),
+              ),
             ),
-            child: const Icon(Icons.directions_car, color: AppColors.ink),
           ),
           const SizedBox(width: 13),
           Expanded(

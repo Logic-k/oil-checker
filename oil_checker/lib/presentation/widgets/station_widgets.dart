@@ -123,6 +123,44 @@ class PriceMarker extends StatelessWidget {
   }
 }
 
+/// 정유사 브랜드 배지 — 브랜드 컬러 배경 + 2~3자 약자.
+/// 로고 파일 없이 정유사 브랜드를 즉시 식별하게 하는 워드마크 배지.
+class BrandBadge extends StatelessWidget {
+  const BrandBadge({
+    super.key,
+    required this.brandCode,
+    this.size = 20,
+  });
+
+  final String brandCode;
+  final double size;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = AppColors.brand(brandCode);
+    final label = AppColors.brandShort(brandCode);
+    return Container(
+      width: size,
+      height: size,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        color: color,
+        borderRadius: BorderRadius.circular(size * 0.28),
+      ),
+      child: Text(
+        label,
+        maxLines: 1,
+        style: TextStyle(
+          fontSize: size * 0.4,
+          fontWeight: FontWeight.w900,
+          letterSpacing: -0.5,
+          color: Colors.white,
+        ),
+      ),
+    );
+  }
+}
+
 class _TailPainter extends CustomPainter {
   const _TailPainter(this.color);
   final Color color;
@@ -225,6 +263,11 @@ class StationCard extends StatelessWidget {
                                         _RankBadge(rank: rank!),
                                         const SizedBox(width: 8),
                                       ],
+                                      BrandBadge(
+                                        brandCode: station.brandCode,
+                                        size: 16,
+                                      ),
+                                      const SizedBox(width: 5),
                                       Flexible(
                                         child: Text(
                                           AppColors

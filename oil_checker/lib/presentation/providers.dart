@@ -112,10 +112,17 @@ final stationDetailProvider =
   return ref.watch(opinetClientProvider).fetchStationDetail(uniId: uniId);
 });
 
-/// 차종·연비 CSV 로더 (앱 임베드 에셋)
+/// 차종·연비 CSV 로더 (앱 임베드 에셋, 연료탱크 매핑 포함)
 final carSpecLoaderProvider = FutureProvider<CarSpecLoader>((ref) async {
   final data = await rootBundle.loadString('assets/data/car_fuel_economy.csv');
-  return CarSpecLoader.fromCsv(data);
+  String? tank;
+  try {
+    tank = await rootBundle
+        .loadString('assets/data/fuel_tank_capacity.csv');
+  } catch (_) {
+    // 에셋 없어도 연비 검색은 동작 — 탱크 자동입력만 생략
+  }
+  return CarSpecLoader.fromCsv(data, tankCsv: tank);
 });
 
 /// 활성 차량 프로필 (없으면 null) — DB 변경 시 자동 갱신

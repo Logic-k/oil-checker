@@ -426,22 +426,9 @@ class _BestCard extends ConsumerWidget {
               const SizedBox(height: 16),
               Row(
                 children: [
-                  Container(
-                    width: 44,
-                    height: 44,
-                    alignment: Alignment.center,
-                    decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Text(
-                      AppColors.brandShort(station.brandCode),
-                      style: const TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w800,
-                        color: Colors.white,
-                      ),
-                    ),
+                  BrandBadge(
+                    brandCode: station.brandCode,
+                    size: 44,
                   ),
                   const SizedBox(width: 12),
                   Expanded(

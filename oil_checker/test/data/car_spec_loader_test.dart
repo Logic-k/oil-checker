@@ -74,4 +74,49 @@ void main() {
       expect(avg, closeTo(12.2, 0.001));
     });
   });
+
+  group('CarSpecLoader.tankCapacityL', () {
+    const kTankCsv = '''
+pattern,liters
+쏘나타+lpi,68
+쏘나타+하이브리드,50
+쏘나타,60
+캐스퍼,35
+모닝+lpi,37
+모닝,35
+아이오닉,0
+그랜저+ig,60
+그랜저+hg,70
+그랜저,60
+''';
+
+    CarSpecLoader build() =>
+        CarSpecLoader.fromCsv(kSampleCsv, tankCsv: kTankCsv);
+
+    test('부분 일치로 공칭 용량을 찾는다', () {
+      expect(build().tankCapacityL('쏘나타(DN8c) 2.0 17인치'), 60);
+      expect(build().tankCapacityL('캐스퍼(AX1) 1.0터보'), 35);
+    });
+
+    test('더 구체적인(+조건) 패턴이 우선한다', () {
+      expect(build().tankCapacityL('쏘나타(DN8c) 2.0 LPI 택시'), 68);
+      expect(build().tankCapacityL('쏘나타 2.5 하이브리드'), 50);
+      expect(build().tankCapacityL('모닝(JA) 1.0LPI'), 37);
+      expect(build().tankCapacityL('그랜저(IG개조) 3.3'), 60);
+      expect(build().tankCapacityL('그랜저(HG) 2.4'), 70);
+    });
+
+    test('매칭 없으면 null, EV는 0', () {
+      expect(build().tankCapacityL('없는차 모델'), isNull);
+      expect(build().tankCapacityL('아이오닉5 롱레인지'), 0);
+      expect(build().isElectric('아이오닉5 롱레인지'), isTrue);
+      expect(build().isElectric('쏘나타'), isFalse);
+    });
+
+    test('탱크 CSV 없이도 생성 가능', () {
+      expect(build().tankCapacityL, isNotNull);
+      expect(CarSpecLoader.fromCsv(kSampleCsv).tankCapacityL('쏘나타'),
+          isNull);
+    });
+  });
 }

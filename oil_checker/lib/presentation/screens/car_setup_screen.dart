@@ -9,6 +9,7 @@ import 'package:oil_checker/core/theme/app_theme.dart';
 import 'package:oil_checker/data/car_spec/car_spec_loader.dart';
 import 'package:oil_checker/presentation/providers.dart';
 import 'package:oil_checker/presentation/widgets/app_state_views.dart';
+import 'package:oil_checker/presentation/widgets/car_image.dart';
 import 'package:oil_checker/presentation/widgets/motion_widgets.dart';
 
 /// 차량 등록 온보딩 — 2단계
@@ -30,6 +31,12 @@ class _CarSetupScreenState extends ConsumerState<CarSetupScreen> {
   Timer? _debounce;
   String _query = '';
   CarSpecEntry? _selected;
+
+  /// 모델 데이터로 자동 채워진 탱크 용량이 있는지 (수정 가능 안내용)
+  bool _tankAutoFilled = false;
+
+  /// 선택 차종이 전기·수소차로 판별됐는지
+  bool _selectedIsEv = false;
   int _step = 0;
   bool _saving = false;
 
@@ -272,7 +279,17 @@ class _CarSetupScreenState extends ConsumerState<CarSetupScreen> {
                       _selected?.fuelType == entry.fuelType,
                   onTap: () {
                     HapticFeedback.selectionClick();
-                    setState(() => _selected = entry);
+                    setState(() {
+                      _selected = entry;
+                      final cap =
+                          loader.tankCapacityL(entry.modelName);
+                      _selectedIsEv = cap == 0;
+                      _tankAutoFilled = cap != null && cap > 0;
+                      if (_tankAutoFilled) {
+                        _tankController.text =
+                            cap!.toStringAsFixed(0);
+                      }
+                    });
                   },
                 ),
               ),
@@ -303,6 +320,12 @@ class _CarSetupScreenState extends ConsumerState<CarSetupScreen> {
           ),
           child: Column(
             children: [
+              CarImage(
+                vehicleType: selected.vehicleType,
+                modelName: selected.modelName,
+                height: 96,
+              ),
+              const SizedBox(height: 14),
               Row(
                 children: [
                   Container(
@@ -390,6 +413,28 @@ class _CarSetupScreenState extends ConsumerState<CarSetupScreen> {
           style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
           decoration: const InputDecoration(suffixText: 'L'),
         ),
+        if (_selectedIsEv) ...[
+          const SizedBox(height: 8),
+          Text(
+            '전기·수소 차량은 주유 대상이 아니에요 — '
+            '그래도 기록용으로 진행할 수 있어요.',
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              color: AppColors.muted,
+            ),
+          ),
+        ] else if (_tankAutoFilled) ...[
+          const SizedBox(height: 8),
+          Text(
+            '차종 제원에서 자동으로 채웠어요 — 다르면 직접 수정해 주세요.',
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              color: scheme.primary,
+            ),
+          ),
+        ],
         const SizedBox(height: 9),
         Row(
           children: [
