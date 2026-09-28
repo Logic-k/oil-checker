@@ -58,6 +58,7 @@ flutter:
     - assets/data/fuel_tank_capacity.csv
     - assets/data/car_image_map.csv
     - assets/cars/
+    - assets/cars/real/
     - assets/brand/icon-512.png
 
 # 네이티브/웹 스플래시 — ink 배경 + 브랜드 아이콘
