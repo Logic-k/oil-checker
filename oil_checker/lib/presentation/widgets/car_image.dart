@@ -25,8 +25,16 @@ bool _photoMatch(String pattern, String rawName) {
   final tokens = rawName
       .toLowerCase()
       .split(RegExp(r'[^a-z0-9가-힣]+'))
-      .where((t) => t.isNotEmpty);
-  for (final t in tokens) {
+      .where((t) => t.isNotEmpty)
+      .toList();
+  // 'Model Y'→['model','y'], 'CR-V'→['cr','v'] 같이 끊긴 이름은
+  // 인접 토큰 결합 후보도 만든다 (최대 3토큰까지).
+  final candidates = <String>[
+    for (var i = 0; i < tokens.length; i++)
+      for (var j = i + 1; j <= tokens.length && j <= i + 3; j++)
+        tokens.sublist(i, j).join(),
+  ];
+  for (final t in candidates) {
     if (t == pattern) return true;
     if (!t.startsWith(pattern)) continue;
     final rest = t.substring(pattern.length);

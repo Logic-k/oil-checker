@@ -32,7 +32,7 @@ Open http://localhost:8899 in Chrome. The proxy injects `OPINET_API_CODE` (env) 
 
 ## Entry points
 
-- DriveScreen: home map's right floating column, TOP button (gold `navigation` icon, tooltip '드라이브 모드') at approx (988,120) in a 1024x768 window.
+- DriveScreen: home map's right floating column, TOP button (`navigation` icon, tooltip '드라이브 모드' — on web it may render as an 'A'-like glyph if the icon font is partially loaded). The gold circle one row BELOW it is `edit_location` (위치 지정) — don't confuse them. Alternative reliable entry: station card → detail → '길안내 시작' → '드라이브 모드로 보기'.
 
 ## Devin Secrets Needed
 
@@ -44,6 +44,8 @@ Open http://localhost:8899 in Chrome. The proxy injects `OPINET_API_CODE` (env) 
 - **Sub-2s animations** (splash intro, count-up): live screenshots always miss them — record 60fps, then extract frames with `ffmpeg -i rec.mkv -vf fps=60 out%04d.png` and diff.
 - **Fresh onboarding**: Drift profile persists — clear IndexedDB + localStorage in devtools, then reload to see CarSetupScreen again.
 - `browser_console` surfaces maplibre_gl web layer validation errors that the app's `catch (_)` swallows — always check it when markers look missing.
+- **Overlay taps dead on web**: the maplibre platform-view DOM swallows pointer events, so taps on Flutter widgets drawn over the map (island pill, control buttons) never reach Flutter. Every overlay on DriveScreen must be wrapped in `PointerInterceptor` (pointer_interceptor pkg); when a tap is dead, check for a missing wrapper before anything else.
+- **Window-region caveat**: the dock/panel regions may be unavailable to coordinate probes — verify drive-mode controls by their effect (map rotation, island expansion), not by clicking coordinates blindly.
 
 ## Asset bundling gotcha
 

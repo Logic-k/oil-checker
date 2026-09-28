@@ -35,6 +35,10 @@ class _CarSetupScreenState extends ConsumerState<CarSetupScreen> {
   /// 모델 데이터로 자동 채워진 탱크 용량이 있는지 (수정 가능 안내용)
   bool _tankAutoFilled = false;
 
+  /// 현재 선택에서 사용자가 탱크 용량을 직접 고쳤는지 —
+  /// 미매칭 모델로 바꿀 때 이전 모델의 자동값이 남지 않게 구분한다.
+  bool _tankUserEdited = false;
+
   /// 선택 차종이 전기·수소차로 판별됐는지
   bool _selectedIsEv = false;
   int _step = 0;
@@ -288,8 +292,14 @@ class _CarSetupScreenState extends ConsumerState<CarSetupScreen> {
                       if (_tankAutoFilled) {
                         _tankController.text =
                             cap!.toStringAsFixed(0);
+                        _tankUserEdited = false;
                       } else if (_selectedIsEv) {
                         _tankController.clear();
+                        _tankUserEdited = false;
+                      } else if (!_tankUserEdited) {
+                        // 미매칭 모델 — 이전 모델의 자동값이
+                        // 남지 않도록 기본값으로 되돌린다
+                        _tankController.text = '50';
                       }
                     });
                   },
@@ -431,6 +441,7 @@ class _CarSetupScreenState extends ConsumerState<CarSetupScreen> {
           keyboardType: const TextInputType.numberWithOptions(decimal: true),
           style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
           decoration: const InputDecoration(suffixText: 'L'),
+          onChanged: (_) => _tankUserEdited = true,
         ),
         if (_selectedIsEv) ...[
           const SizedBox(height: 8),
@@ -460,9 +471,10 @@ class _CarSetupScreenState extends ConsumerState<CarSetupScreen> {
             for (final preset in _tankPresets) ...[
               Pressable(
                 child: GestureDetector(
-                  onTap: () => setState(
-                    () => _tankController.text = preset.toStringAsFixed(0),
-                  ),
+                  onTap: () => setState(() {
+                    _tankController.text = preset.toStringAsFixed(0);
+                    _tankUserEdited = true;
+                  }),
                   child: AnimatedContainer(
                     duration: const Duration(milliseconds: 180),
                     curve: AppMotion.curveStandard,
