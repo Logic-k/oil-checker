@@ -32,7 +32,7 @@ Open http://localhost:8899 in Chrome. The proxy injects `OPINET_API_CODE` (env) 
 
 ## Entry points
 
-- DriveScreen: home map's right floating column, TOP button (gold `navigation` icon, tooltip '드라이브 모드') at approx (988,120) in a 1024x768 window.
+- DriveScreen: home map's right floating column, TOP button (`navigation` icon, tooltip '드라이브 모드' — on web it may render as an 'A'-like glyph if the icon font is partially loaded). The gold circle one row BELOW it is `edit_location` (위치 지정) — don't confuse them. Alternative reliable entry: station card → detail → '길안내 시작' → '드라이브 모드로 보기'.
 
 ## Devin Secrets Needed
 
