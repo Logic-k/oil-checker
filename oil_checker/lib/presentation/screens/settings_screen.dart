@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:oil_checker/core/opinet/opinet_client.dart';
 import 'package:oil_checker/core/theme/app_theme.dart';
 import 'package:oil_checker/presentation/providers.dart';
+import 'package:oil_checker/presentation/savings_copy.dart';
 import 'package:oil_checker/presentation/screens/car_setup_screen.dart';
 import 'package:oil_checker/core/theme/app_motion.dart';
 import 'package:oil_checker/presentation/ui_prefs.dart';
@@ -21,6 +22,8 @@ class SettingsScreen extends ConsumerWidget {
     final themeMode = ref.watch(themeModeProvider);
     final monthly = ref.watch(monthlyFillCountProvider);
     final emphasis = ref.watch(savingsEmphasisProvider);
+    final baseline = ref.watch(savingsBaselineProvider);
+    final fillUp = ref.watch(fillUpPlanProvider).value;
 
     return Scaffold(
       appBar: AppBar(title: const Text('설정')),
@@ -80,16 +83,46 @@ class SettingsScreen extends ConsumerWidget {
           _Group(
             children: [
               _RowTile(
+                title: '절약 비교 기준',
+                subtitle: baseline == SavingsBaseline.areaMedian
+                    ? '반경 5km 주유소 가격의 중앙값과 비교해요'
+                    : '가장 가까운 주유소 가격과 비교해요',
+                trailing: _Segmented(
+                  options: const ['주변 시세', '가까운 곳'],
+                  selected: baseline == SavingsBaseline.areaMedian ? 0 : 1,
+                  onChanged: (i) => ref
+                      .read(savingsBaselineProvider.notifier)
+                      .set(i == 0
+                          ? SavingsBaseline.areaMedian
+                          : SavingsBaseline.nearest),
+                ),
+              ),
+              if (fillUp != null)
+                _RowTile(
+                  title: '1회 주유량',
+                  subtitle: fillUp.basis == FillUpBasis.recentHistory
+                      ? '최근 주유 ${fillUp.sampleCount}회 평균이에요'
+                      : '주유 기록을 남기면 내 평균으로 바뀌어요',
+                  trailing: Text(
+                    '${formatLiters(fillUp.liters)}L',
+                    style: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.muted,
+                    ),
+                  ),
+                ),
+              _RowTile(
                 title: '절약액 표기',
                 subtitle: '절약순위 1위 카드에 적용돼요',
                 trailing: _Segmented(
-                  options: const ['월 환산', '1회당'],
-                  selected: emphasis == SavingsEmphasis.monthly ? 0 : 1,
+                  options: const ['1회당', '월 환산'],
+                  selected: emphasis == SavingsEmphasis.perFill ? 0 : 1,
                   onChanged: (i) => ref
                       .read(savingsEmphasisProvider.notifier)
                       .set(i == 0
-                          ? SavingsEmphasis.monthly
-                          : SavingsEmphasis.perFill),
+                          ? SavingsEmphasis.perFill
+                          : SavingsEmphasis.monthly),
                 ),
               ),
               _RowTile(
@@ -121,13 +154,16 @@ class SettingsScreen extends ConsumerWidget {
               if (active != null)
                 _RowTile(
                   title: '연료 종류',
-                  trailing: Text(
-                    _fuelLabel(active.fuelType),
-                    style: const TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w700,
-                      color: AppColors.muted,
-                    ),
+                  subtitle: '주유소 가격을 이 연료로 불러와요',
+                  trailing: _Segmented(
+                    options: const ['휘발유', '경유', 'LPG'],
+                    selected: _fuelIndex(active.fuelType),
+                    onChanged: (i) => ref
+                        .read(appDatabaseProvider)
+                        .updateCarProfileFuelType(
+                          active.id,
+                          _fuelCodes[i],
+                        ),
                   ),
                 ),
             ],
@@ -192,6 +228,18 @@ class SettingsScreen extends ConsumerWidget {
         OpinetClient.productLpg => 'LPG',
         _ => '휘발유',
       };
+
+  /// 연료 선택지 — [_Segmented] 인덱스 순서와 같다
+  static const List<String> _fuelCodes = [
+    OpinetClient.productGasoline,
+    OpinetClient.productDiesel,
+    OpinetClient.productLpg,
+  ];
+
+  static int _fuelIndex(String productCode) {
+    final i = _fuelCodes.indexOf(productCode);
+    return i < 0 ? 0 : i;
+  }
 }
 
 /// 활성 차량 하이라이트 카드

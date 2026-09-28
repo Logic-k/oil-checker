@@ -49,6 +49,7 @@ void main() {
       congestionLevel: CongestionLevel.heavy,
       baselinePrice: 1700,
       fillUpLiters: 50,
+      stationCount: 2,
       ranked: [
         EconomyRankingEntry(
           station: stations[0],
@@ -95,12 +96,18 @@ void main() {
     expect(find.text('실연비 12.0 km/L 기준'), findsOneWidget);
   });
 
-  testWidgets('1위 히어로 카드가 절약액·월 절약·도로 정보를 표시한다', (tester) async {
+  testWidgets('1위 히어로 카드가 비교 기준·주유량과 함께 절약액·도로 정보를 표시한다',
+      (tester) async {
     await tester.pumpWidget(buildRanking());
     await tester.pumpAndSettle();
 
-    expect(find.text('월 2회 주유 기준, 여기서 넣으면'), findsOneWidget);
+    // 기본 표기 = 1회당, 가정(비교 기준·주유량)을 숫자 위에 함께 적는다
+    expect(find.text('주변 시세(1,700원) 대비 · 1회 50L 기준'), findsOneWidget);
+    // (1700-1600)×50 - (3.2/12×1600 + 24×80) = 5000 - 2346.7 ≈ 2,653원
+    expect(find.text('2,653'), findsOneWidget);
     expect(find.text('아껴요'), findsOneWidget);
+    expect(find.textContaining('주변 시세는 반경 5km 2곳 가격의 중앙값이에요.'),
+        findsOneWidget);
     expect(find.text('주유소 A'), findsOneWidget);
     expect(find.text('1,600원/L'), findsOneWidget);
     expect(find.text('도로 왕복'), findsOneWidget);

@@ -18,6 +18,13 @@ enum CongestionLevel {
   heavy,
 }
 
+/// 한국 표준시(UTC+9) 현재 시각.
+///
+/// 혼잡 판정은 한국 도로의 시간대 패턴이므로 기기 시간대(예: UTC로 설정된
+/// 에뮬레이터·해외 로밍)와 무관하게 KST 벽시계로 판단한다. 한국은 서머타임이
+/// 없어 고정 +9시간이면 된다. 반환값은 UTC 표기지만 hour/weekday는 KST 기준.
+DateTime kstNow() => DateTime.now().toUtc().add(const Duration(hours: 9));
+
 /// 시간대별 혼잡 가중치.
 ///
 /// [time] 기준으로 [CongestionLevel]과 예상 시간 배수를 반환한다.

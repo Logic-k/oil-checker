@@ -74,6 +74,35 @@ void main() {
       expect(result.score, closeTo(8300, 0.001));
     });
 
+    test('기준 이동비보다 더 드는 비용만 우회비용으로 뺀다 (0 하한)', () {
+      final far = calculateEconomy(
+        baselinePrice: 1900,
+        candidatePrice: 1840,
+        fillUpLiters: 40,
+        detourKm: 8.2,
+        driveTimeMin: 12.3,
+        fuelEfficiency: 10,
+        timeValueWonPerMin: 80,
+        referenceTripCost: 310,
+      );
+      expect(far.detourCost, closeTo(2492.8, 0.01)); // 이동비 전체
+      expect(far.extraTripCost, closeTo(2182.8, 0.01)); // 더 드는 만큼
+      expect(far.score, closeTo(2400 - 2182.8, 0.01));
+
+      final nearer = calculateEconomy(
+        baselinePrice: 1900,
+        candidatePrice: 1840,
+        fillUpLiters: 40,
+        detourKm: 0.5,
+        driveTimeMin: 1,
+        fuelEfficiency: 10,
+        timeValueWonPerMin: 80,
+        referenceTripCost: 310,
+      );
+      expect(nearer.extraTripCost, 0); // 기준보다 적게 들면 0
+      expect(nearer.score, closeTo(2400, 0.001));
+    });
+
     test('스코어가 양수면 isSavings=true', () {
       final result = calculateEconomy(
         baselinePrice: 2000,

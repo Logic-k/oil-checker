@@ -1,4 +1,6 @@
 import 'package:drift/drift.dart';
+import 'package:oil_checker/core/opinet/opinet_client.dart';
+import 'package:oil_checker/data/car_spec/fuel_type_inference.dart';
 
 part 'app_database.g.dart';
 
@@ -12,7 +14,7 @@ class CarProfiles extends Table {
   /// 제조(수입사)
   TextColumn get brand => text().withDefault(const Constant(''))();
 
-  /// 기름 종류 (B027 휘발유 / D047 경유)
+  /// 기름 종류 — Opinet 제품 코드 (B027 휘발유 / D047 경유 / K015 LPG)
   TextColumn get fuelType => text()();
 
   /// 탱크용량 (L)
@@ -98,10 +100,53 @@ class AppDatabase extends _$AppDatabase {
 
   AppDatabase.forTesting(super.e) : super();
 
+  /// v2: 스키마 변경 없음 — v1에서 모든 차량이 휘발유로 저장되던 버그를
+  /// 한 번 보정한다 ([reinferFuelTypes]).
   @override
-  int get schemaVersion => 1;
+  int get schemaVersion => 2;
+
+  @override
+  MigrationStrategy get migration => MigrationStrategy(
+        onCreate: (m) => m.createAll(),
+        onUpgrade: (m, from, to) async {
+          // 테이블 구조는 v1과 같다. 데이터 보정은 beforeOpen에서 한다
+          // (마이그레이션이 끝난 뒤라 일반 쿼리를 안전하게 쓸 수 있다).
+        },
+        beforeOpen: (details) async {
+          final before = details.versionBefore;
+          if (before != null && before < 2) {
+            await reinferFuelTypes();
+          }
+        },
+      );
 
   // ── 차량 프로필 ───────────────────────────────────────────────
+
+  /// v1 보정: 휘발유(B027)로 저장된 프로필만 모델명으로 다시 추론해
+  /// 경유·LPG로 고친다. 고친 프로필 수를 반환한다.
+  ///
+  /// v1은 연료를 고를 방법이 없었으므로 B027 값은 사용자 선택이 아니라
+  /// 버그의 결과다. v2부터는 사용자가 고른 값을 건드리지 않는다
+  /// (스키마 버전 업그레이드 때 한 번만 실행).
+  Future<int> reinferFuelTypes() async {
+    final profiles = await (select(carProfiles)
+          ..where((t) => t.fuelType.equals(OpinetClient.productGasoline)))
+        .get();
+    var fixed = 0;
+    for (final profile in profiles) {
+      final inferred = inferFuelProductCode(profile.modelName);
+      if (inferred == profile.fuelType) continue;
+      await updateCarProfileFuelType(profile.id, inferred);
+      fixed++;
+    }
+    return fixed;
+  }
+
+  /// 차량의 연료 종류(Opinet 제품 코드) 변경
+  Future<void> updateCarProfileFuelType(int id, String fuelType) async {
+    await (update(carProfiles)..where((t) => t.id.equals(id)))
+        .write(CarProfilesCompanion(fuelType: Value(fuelType)));
+  }
 
   /// 차량 프로필 등록/수정
   Future<void> upsertCarProfile({

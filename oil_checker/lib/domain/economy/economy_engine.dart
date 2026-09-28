@@ -6,7 +6,8 @@
 ///   - 우회거리는 **실제 도로 거리**(OSRM) 기준 (기존 직선거리 → 도로거리)
 /// - 시간비용(원) = 예상 우회 시간(분) × 시간 가치(원/분)
 ///   - 예상 우회 시간에는 시간대별 **교통 혼잡 가중치** 반영
-/// - 우회비용(원) = 연료비용 + 시간비용
+/// - 우회비용(원) = (연료비용 + 시간비용) - 기준 이동비 (0 이상)
+///   - 기준 이동비 = 가장 가까운 주유소를 오가는 비용 (어차피 드는 비용)
 /// - 경제성 점수(원) = 절약액 - 우회비용 (양수일 때만 "절약")
 ///
 /// 우회거리 규칙:
@@ -26,6 +27,7 @@ class EconomyResult implements HasScore {
     required this.driveTimeMin,
     required this.fuelCost,
     required this.timeCost,
+    required this.referenceTripCost,
   });
 
   /// 절약액 (원) = (기준가 - 후보가) × 주유량
@@ -43,12 +45,24 @@ class EconomyResult implements HasScore {
   /// 시간비용 = 예상 우회 시간(분) × 시간 가치
   final double timeCost;
 
-  /// 우회비용 (원) = 연료비용 + 시간비용
+  /// 어차피 드는 이동비 (원) — 가장 가까운 주유소를 오가는 비용.
+  ///
+  /// 주유하려면 어디든 다녀와야 하므로, 그보다 **더 드는** 이동비만
+  /// 절약액에서 뺀다. 0이면 이동비 전체를 뺀다(기존 동작).
+  final double referenceTripCost;
+
+  /// 이동비 전체 (원) = 연료비용 + 시간비용
   double get detourCost => fuelCost + timeCost;
+
+  /// 우회비용 (원) — 기준 이동비보다 더 드는 연료·시간 비용 (0 이상)
+  double get extraTripCost {
+    final extra = detourCost - referenceTripCost;
+    return extra > 0 ? extra : 0;
+  }
 
   /// 경제성 점수 = 절약액 - 우회비용
   @override
-  double get score => savingAmount - detourCost;
+  double get score => savingAmount - extraTripCost;
 
   /// 스코어가 양수일 때만 실제 "절약"
   bool get isSavings => score > 0;
@@ -56,13 +70,14 @@ class EconomyResult implements HasScore {
 
 /// 경제성 점수 계산
 ///
-/// [baselinePrice]: 기준 주유소 가격 (원/L, 보통 현재 가장 가까운 곳)
+/// [baselinePrice]: 비교 기준 가격 (원/L — 주변 시세 중앙값 또는 가장 가까운 곳)
 /// [candidatePrice]: 후보 주유소 가격 (원/L)
 /// [fillUpLiters]: 주유량 (L)
 /// [detourKm]: 우회거리 (km) — 실제 도로 기준, [computeDetourKm] 결과
 /// [driveTimeMin]: 혼잡 반영 예상 우회 시간 (분) — [applyCongestion] 결과
 /// [fuelEfficiency]: 차량 연비 (km/L)
 /// [timeValueWonPerMin]: 시간 가치 (원/분, 기본 0 = 시간 비용 미반영)
+/// [referenceTripCost]: 어차피 드는 이동비 (원, 기본 0) — [EconomyResult.referenceTripCost]
 EconomyResult calculateEconomy({
   required int baselinePrice,
   required int candidatePrice,
@@ -71,6 +86,7 @@ EconomyResult calculateEconomy({
   required double driveTimeMin,
   required double fuelEfficiency,
   double timeValueWonPerMin = 0,
+  double referenceTripCost = 0,
 }) {
   final savingAmount =
       (baselinePrice - candidatePrice) * fillUpLiters;
@@ -84,6 +100,7 @@ EconomyResult calculateEconomy({
     driveTimeMin: driveTimeMin,
     fuelCost: fuelCost,
     timeCost: timeCost,
+    referenceTripCost: referenceTripCost,
   );
 }
 

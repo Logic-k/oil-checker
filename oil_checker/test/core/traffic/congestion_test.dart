@@ -57,4 +57,19 @@ void main() {
     expect(CongestionModel.labelOf(CongestionLevel.moderate), '보통');
     expect(CongestionModel.labelOf(CongestionLevel.heavy), '혼잡');
   });
+
+  test('kstNow는 기기 시간대와 무관하게 UTC+9 벽시계를 준다', () {
+    final utc = DateTime.now().toUtc();
+    final kst = kstNow();
+    expect(kst.isUtc, isTrue);
+    expect(kst.difference(utc).inMinutes, closeTo(9 * 60, 1));
+  });
+
+  test('UTC 12:43(월)은 KST 21:43 — 출퇴근 혼잡이 아니라 원활', () {
+    // 에뮬레이터(UTC)에서 KST 저녁을 주간 '보통'으로 잘못 판정하던 사례
+    final utc = DateTime.utc(2026, 9, 28, 12, 43); // 월요일
+    final kst = utc.add(const Duration(hours: 9));
+    expect(model.levelAt(utc), CongestionLevel.moderate); // 기기 시각 그대로면 오판
+    expect(model.levelAt(kst), CongestionLevel.smooth);
+  });
 }

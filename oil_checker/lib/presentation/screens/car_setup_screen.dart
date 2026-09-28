@@ -7,6 +7,7 @@ import 'package:oil_checker/core/opinet/opinet_client.dart';
 import 'package:oil_checker/core/theme/app_motion.dart';
 import 'package:oil_checker/core/theme/app_theme.dart';
 import 'package:oil_checker/data/car_spec/car_spec_loader.dart';
+import 'package:oil_checker/data/car_spec/fuel_type_inference.dart';
 import 'package:oil_checker/presentation/providers.dart';
 import 'package:oil_checker/presentation/widgets/app_state_views.dart';
 import 'package:oil_checker/presentation/widgets/car_image.dart';
@@ -41,10 +42,20 @@ class _CarSetupScreenState extends ConsumerState<CarSetupScreen> {
 
   /// 선택 차종이 전기·수소차로 판별됐는지
   bool _selectedIsEv = false;
+
+  /// 연료 종류(Opinet 제품 코드) — 모델명으로 추정한 값을 기본으로, STEP 2에서 변경 가능
+  String _fuelCode = OpinetClient.productGasoline;
   int _step = 0;
   bool _saving = false;
 
   static const _tankPresets = [50.0, 67.0, 80.0];
+
+  /// STEP 2 연료 선택지 (라벨, 제품 코드)
+  static const _fuelOptions = [
+    ('휘발유', OpinetClient.productGasoline),
+    ('경유', OpinetClient.productDiesel),
+    ('LPG', OpinetClient.productLpg),
+  ];
 
   @override
   void dispose() {
@@ -61,12 +72,6 @@ class _CarSetupScreenState extends ConsumerState<CarSetupScreen> {
       if (!mounted) return;
       setState(() => _query = value.trim());
     });
-  }
-
-  String _mapFuelType(String fuelType) {
-    if (fuelType.contains('경유')) return OpinetClient.productDiesel;
-    if (fuelType.contains('LPG')) return OpinetClient.productLpg;
-    return OpinetClient.productGasoline;
   }
 
   Future<void> _save() async {
@@ -86,7 +91,7 @@ class _CarSetupScreenState extends ConsumerState<CarSetupScreen> {
             id: null,
             modelName: selected.modelName,
             brand: selected.manufacturer,
-            fuelType: _mapFuelType(selected.fuelType),
+            fuelType: _fuelCode,
             tankSizeL: tankSize,
             avgFuelEfficiency: selected.combinedKmPerL,
             manualFuelEfficiency: manual,
@@ -285,6 +290,10 @@ class _CarSetupScreenState extends ConsumerState<CarSetupScreen> {
                     HapticFeedback.selectionClick();
                     setState(() {
                       _selected = entry;
+                      _fuelCode = inferFuelProductCode(
+                        entry.modelName,
+                        typeColumn: entry.fuelType,
+                      );
                       final cap =
                           loader.tankCapacityL(entry.modelName);
                       _selectedIsEv = cap == 0;
@@ -431,6 +440,52 @@ class _CarSetupScreenState extends ConsumerState<CarSetupScreen> {
                 ],
               ),
             ],
+          ),
+        ),
+        const SizedBox(height: 22),
+        const _FieldLabel('연료 종류'),
+        const SizedBox(height: 9),
+        Row(
+          children: [
+            for (final (label, code) in _fuelOptions)
+              Pressable(
+                child: GestureDetector(
+                  onTap: () => setState(() => _fuelCode = code),
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 180),
+                    curve: AppMotion.curveStandard,
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 16, vertical: 9),
+                    margin: const EdgeInsets.only(right: 8),
+                    decoration: BoxDecoration(
+                      color: _fuelCode == code
+                          ? scheme.onSurface
+                          : scheme.surface,
+                      borderRadius: BorderRadius.circular(999),
+                      border: Border.all(color: scheme.outlineVariant),
+                    ),
+                    child: Text(
+                      label,
+                      style: TextStyle(
+                        fontSize: 13.5,
+                        fontWeight: FontWeight.w700,
+                        color: _fuelCode == code
+                            ? scheme.surface
+                            : scheme.onSurface,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        Text(
+          '모델명으로 추정했어요 — 다르면 바꿔 주세요. 이 연료 가격으로 주유소를 찾아요.',
+          style: TextStyle(
+            fontSize: 12,
+            height: 1.45,
+            color: scheme.onSurfaceVariant,
           ),
         ),
         const SizedBox(height: 22),

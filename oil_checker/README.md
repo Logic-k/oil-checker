@@ -141,7 +141,7 @@ flutter build apk --release
 
 ```powershell
 flutter analyze   # 0 issues (tool/katec_probe.dart의 print info 제외)
-flutter test       # 73 tests 통과 (KATEC 8건 포함)
+flutter test       # 106 tests 통과 (KATEC 8건, 연료 추론·절약 기준가·DB 마이그레이션 포함)
 ```
 
 ## 프로젝트 구조

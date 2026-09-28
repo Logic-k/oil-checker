@@ -6,6 +6,7 @@ import 'package:oil_checker/core/theme/app_motion.dart';
 import 'package:oil_checker/core/theme/app_theme.dart';
 import 'package:oil_checker/domain/economy/economy_engine.dart';
 import 'package:oil_checker/presentation/providers.dart';
+import 'package:oil_checker/presentation/savings_copy.dart';
 import 'package:oil_checker/presentation/screens/station_detail_screen.dart';
 import 'package:oil_checker/presentation/ui_prefs.dart';
 import 'package:oil_checker/presentation/widgets/app_state_views.dart';
@@ -194,7 +195,7 @@ class _RankingBody extends ConsumerWidget {
                             savingAmount: shown[i].result.score,
                             detourKm: shown[i].result.detourKm,
                             driveTimeMin: shown[i].result.driveTimeMin,
-                            detourCost: shown[i].result.detourCost,
+                            detourCost: shown[i].result.extraTripCost,
                             baselinePrice: result.baselinePrice,
                             onTap: position == null ? null : open,
                           ),
@@ -297,9 +298,10 @@ class _BestCard extends ConsumerWidget {
 
     final amount =
         isMonthly ? economy.score * monthly : economy.score;
+    // 절약액의 가정(비교 기준·주유량)을 숫자 바로 위에 함께 적는다
     final caption = isMonthly
-        ? '월 $monthly회 주유 기준, 여기서 넣으면'
-        : '가득 주유하면 1회당';
+        ? '${savingsBasisVs(result)} · ${fillUpPhrase(result)} × 월 $monthly회'
+        : '${savingsBasisVs(result)} · ${fillUpPhrase(result)} 기준';
 
     return Material(
       color: Colors.transparent,
@@ -418,7 +420,7 @@ class _BestCard extends ConsumerWidget {
                 Padding(
                   padding: const EdgeInsets.only(top: 4),
                   child: Text(
-                    '우회비용이 절약액보다 커서 추천하지 않아요',
+                    noSavingsMessage(result),
                     style: TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.w700,
@@ -489,6 +491,15 @@ class _BestCard extends ConsumerWidget {
               ),
               const SizedBox(height: 16),
               _MetricRow(economy: economy),
+              const SizedBox(height: 10),
+              Text(
+                savingsFootnote(result),
+                style: TextStyle(
+                  fontSize: 11.5,
+                  height: 1.45,
+                  color: Colors.white.withValues(alpha: 0.55),
+                ),
+              ),
             ],
           ),
         ),
@@ -519,7 +530,7 @@ class _MetricRow extends StatelessWidget {
             const SizedBox(width: 1),
             _metric('예상 시간', '${economy.driveTimeMin.round()}분'),
             const SizedBox(width: 1),
-            _metric('우회비용', '${formatWon(economy.detourCost)}원'),
+            _metric('우회비용', '${formatWon(economy.extraTripCost)}원'),
           ],
         ),
       ),

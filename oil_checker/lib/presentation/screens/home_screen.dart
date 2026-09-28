@@ -11,9 +11,11 @@ import 'package:oil_checker/core/opinet/opinet_station.dart';
 import 'package:oil_checker/core/theme/app_motion.dart';
 import 'package:oil_checker/core/theme/app_theme.dart';
 import 'package:oil_checker/presentation/providers.dart';
+import 'package:oil_checker/presentation/savings_copy.dart';
 import 'package:oil_checker/presentation/screens/drive_screen.dart';
 import 'package:oil_checker/presentation/screens/station_detail_screen.dart';
 import 'package:oil_checker/presentation/widgets/app_state_views.dart';
+import 'package:oil_checker/presentation/widgets/map_attribution.dart';
 import 'package:oil_checker/presentation/widgets/motion_widgets.dart';
 import 'package:oil_checker/presentation/widgets/station_widgets.dart';
 
@@ -130,7 +132,7 @@ class _LocationButtons extends StatelessWidget {
           color: active
               ? AppColors.best
               : (background ??
-                  (isDark ? scheme.surfaceContainerHigh : Colors.white)),
+                    (isDark ? scheme.surfaceContainerHigh : Colors.white)),
           shape: const CircleBorder(),
           elevation: 2,
           child: Tooltip(
@@ -147,9 +149,9 @@ class _LocationButtons extends StatelessWidget {
                   color: active
                       ? AppColors.ink
                       : (foreground ??
-                          (isDark
-                              ? scheme.onSurface
-                              : scheme.onSurfaceVariant)),
+                            (isDark
+                                ? scheme.onSurface
+                                : scheme.onSurfaceVariant)),
                 ),
               ),
             ),
@@ -209,10 +211,10 @@ class _TopBar extends StatelessWidget {
   final VoidCallback onRefresh;
 
   String get _fuelLabel => switch (productCode) {
-        OpinetClient.productDiesel => '경유',
-        OpinetClient.productLpg => 'LPG',
-        _ => '휘발유',
-      };
+    OpinetClient.productDiesel => '경유',
+    OpinetClient.productLpg => 'LPG',
+    _ => '휘발유',
+  };
 
   @override
   Widget build(BuildContext context) {
@@ -246,8 +248,11 @@ class _TopBar extends StatelessWidget {
                 ),
                 child: Row(
                   children: [
-                    Icon(Icons.my_location,
-                        size: 17, color: scheme.onSurfaceVariant),
+                    Icon(
+                      Icons.my_location,
+                      size: 17,
+                      color: scheme.onSurfaceVariant,
+                    ),
                     const SizedBox(width: 9),
                     Text(
                       '내 주변 주유소',
@@ -368,8 +373,8 @@ class _StationMapState extends State<_StationMap>
       ),
       children: [
         TileLayer(
-          urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-          userAgentPackageName: 'com.example.oil_checker',
+          urlTemplate: kOsmTileUrl,
+          userAgentPackageName: kTileUserAgentPackage,
         ),
         MarkerLayer(
           markers: [
@@ -464,8 +469,7 @@ class _DropPin extends StatelessWidget {
           ),
         ],
       ),
-      child:
-          const Icon(Icons.location_on, size: 18, color: AppColors.ink),
+      child: const Icon(Icons.location_on, size: 18, color: AppColors.ink),
     );
 
     if (AppMotion.reduceMotion(context)) return pin;
@@ -473,10 +477,8 @@ class _DropPin extends StatelessWidget {
       tween: Tween(begin: 0, end: 1),
       duration: const Duration(milliseconds: 600),
       curve: Curves.bounceOut,
-      builder: (context, t, child) => Transform.translate(
-        offset: Offset(0, -52 * (1 - t)),
-        child: child,
-      ),
+      builder: (context, t, child) =>
+          Transform.translate(offset: Offset(0, -52 * (1 - t)), child: child),
       child: pin,
     );
   }
@@ -529,98 +531,137 @@ class _StationSheet extends StatelessWidget {
     final scheme = Theme.of(context).colorScheme;
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
-    return DraggableScrollableSheet(
-      initialChildSize: 0.5,
-      minChildSize: 0.22,
-      maxChildSize: 0.92,
-      // 자석 스냅 — 손을 떼면 가장 가까운 크기로 붙는다
-      snap: true,
-      snapSizes: const [0.5],
-      builder: (context, controller) {
-        return Container(
-          decoration: BoxDecoration(
-            color: scheme.surface,
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(26)),
-            border: Border(top: BorderSide(color: scheme.outlineVariant)),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.14),
-                blurRadius: 30,
-                offset: const Offset(0, -8),
+    // 시트가 놓인 영역(지도 전체) 높이 — 저작권 표기를 보일지 판단하는 데 쓴다
+    return LayoutBuilder(
+      builder: (context, area) => DraggableScrollableSheet(
+        initialChildSize: 0.5,
+        minChildSize: 0.22,
+        maxChildSize: 0.92,
+        // 자석 스냅 — 손을 떼면 가장 가까운 크기로 붙는다
+        snap: true,
+        snapSizes: const [0.5],
+        builder: (context, controller) {
+          final sheet = Container(
+            decoration: BoxDecoration(
+              color: scheme.surface,
+              borderRadius: const BorderRadius.vertical(
+                top: Radius.circular(26),
               ),
-            ],
-          ),
-          clipBehavior: Clip.antiAlias,
-          child: AnimatedSwitcher(
-            duration: const Duration(milliseconds: 250),
-            child: KeyedSubtree(
-              key: ValueKey(
-                stationsAsync.hasValue
-                    ? 'data'
-                    : (stationsAsync.hasError ? 'error' : 'loading'),
-              ),
-              child: stationsAsync.when(
-                loading: () => const AppSkeleton.list(),
-                error: (e, _) => AppEmptyView(
-                  icon: Icons.cloud_off_outlined,
-                  title: '주유소 정보를 불러오지 못했어요',
-                  message: '$e',
-                  actionLabel: '다시 시도',
-                  onAction: onRetry,
+              border: Border(top: BorderSide(color: scheme.outlineVariant)),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.14),
+                  blurRadius: 30,
+                  offset: const Offset(0, -8),
                 ),
-                data: (stations) => stations.isEmpty
-                    ? const AppEmptyView(
-                        icon: Icons.local_gas_station_outlined,
-                        title: '주변에 주유소가 없습니다',
-                      )
-                    : RefreshIndicator(
-                        color: isDark ? AppColors.best : AppColors.ink,
-                        // 당겨서 새로고침 — 드래그 시트와 제스처 충돌 없음
-                        onRefresh: () async => onRetry(),
-                        child: ListView(
-                          controller: controller,
-                          physics: const AlwaysScrollableScrollPhysics(),
-                          padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
-                          children: [
-                          const _Grabber(),
-                          if (ranking != null) ...[
-                            Padding(
-                              padding:
-                                  const EdgeInsets.fromLTRB(0, 4, 0, 12),
-                              child: Row(
-                                children: [
-                                  CongestionChip(
-                                      level: ranking!.congestionLevel),
-                                  const SizedBox(width: 8),
-                                  Expanded(
-                                    child: Text(
-                                      '지금 도로 상황이 반영됐어요',
-                                      style: TextStyle(
-                                        fontSize: 12,
-                                        color: scheme.onSurfaceVariant,
-                                      ),
-                                    ),
+              ],
+            ),
+            clipBehavior: Clip.antiAlias,
+            child: AnimatedSwitcher(
+              duration: const Duration(milliseconds: 250),
+              child: KeyedSubtree(
+                key: ValueKey(
+                  stationsAsync.hasValue
+                      ? 'data'
+                      : (stationsAsync.hasError ? 'error' : 'loading'),
+                ),
+                child: stationsAsync.when(
+                  loading: () => const AppSkeleton.list(),
+                  error: (e, _) => AppEmptyView(
+                    icon: Icons.cloud_off_outlined,
+                    title: '주유소 정보를 불러오지 못했어요',
+                    message: '$e',
+                    actionLabel: '다시 시도',
+                    onAction: onRetry,
+                  ),
+                  data: (stations) => stations.isEmpty
+                      ? const AppEmptyView(
+                          icon: Icons.local_gas_station_outlined,
+                          title: '주변에 주유소가 없습니다',
+                        )
+                      : RefreshIndicator(
+                          color: isDark ? AppColors.best : AppColors.ink,
+                          // 당겨서 새로고침 — 드래그 시트와 제스처 충돌 없음
+                          onRefresh: () async => onRetry(),
+                          child: ListView(
+                            controller: controller,
+                            physics: const AlwaysScrollableScrollPhysics(),
+                            padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+                            children: [
+                              const _Grabber(),
+                              if (ranking != null) ...[
+                                Padding(
+                                  padding: const EdgeInsets.fromLTRB(
+                                    0,
+                                    4,
+                                    0,
+                                    12,
                                   ),
-                                ],
-                              ),
-                            ),
-                          ] else
-                            const SizedBox(height: 8),
-                          for (var i = 0; i < stations.length; i++) ...[
-                            StaggerIn(
-                              index: i,
-                              child: _cardFor(context, stations[i]),
-                            ),
-                            const SizedBox(height: 10),
-                          ],
-                        ],
-                      ),
-                    ),
+                                  child: Row(
+                                    children: [
+                                      CongestionChip(
+                                        level: ranking!.congestionLevel,
+                                      ),
+                                      const SizedBox(width: 8),
+                                      Expanded(
+                                        // 실시간 교통이 아니라 시간대별 가정이다
+                                        child: Text(
+                                          '${savingsBasisShort(ranking!)} · '
+                                          '시간대별 예상 혼잡',
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: TextStyle(
+                                            fontSize: 12,
+                                            color: scheme.onSurfaceVariant,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ] else
+                                const SizedBox(height: 8),
+                              // 랭킹 탭과 같은 경제성 순 — 순위 배지가 1, 2, 3…으로 이어진다
+                              for (final (i, station) in orderStationsByEconomy(
+                                stations,
+                                ranking,
+                              ).indexed) ...[
+                                StaggerIn(
+                                  key: ValueKey(station.uniId),
+                                  index: i,
+                                  child: _cardFor(context, station),
+                                ),
+                                const SizedBox(height: 10),
+                              ],
+                            ],
+                          ),
+                        ),
+                ),
               ),
             ),
-          ),
-        );
-      },
+          );
+          // 지도 저작권 표기 — 시트 바로 위(지도가 보이는 영역의 아래 모서리)에
+          // 항상 보이게 둔다. 시트를 영역의 75% 넘게 올리면 남은 지도가 상단 바에
+          // 가려지므로 그때만 숨긴다.
+          return LayoutBuilder(
+            builder: (context, constraints) {
+              final mapVisible = constraints.maxHeight <= area.maxHeight * 0.75;
+              return Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  Positioned.fill(child: sheet),
+                  if (mapVisible)
+                    const Positioned(
+                      left: 12,
+                      top: -26,
+                      child: IgnorePointer(child: OsmAttribution()),
+                    ),
+                ],
+              );
+            },
+          );
+        },
+      ),
     );
   }
 
@@ -648,21 +689,20 @@ class _StationSheet extends StatelessWidget {
         rank: () {
           final ranked = ranking?.ranked;
           if (ranked == null) return null;
-          final idx =
-              ranked.indexWhere((e) => e.station.uniId == station.uniId);
+          final idx = ranked.indexWhere(
+            (e) => e.station.uniId == station.uniId,
+          );
           return idx < 0 ? null : idx + 1;
         }(),
         savingAmount: entry?.result.score,
         detourKm: isBest ? entry?.result.detourKm : null,
         driveTimeMin: entry?.result.driveTimeMin,
-        detourCost: entry?.result.detourCost,
+        detourCost: entry?.result.extraTripCost,
         baselinePrice: ranking?.baselinePrice,
         onTap: open,
       ),
-      openBuilder: (context, _) => StationDetailScreen(
-        station: station,
-        position: position,
-      ),
+      openBuilder: (context, _) =>
+          StationDetailScreen(station: station, position: position),
     );
   }
 
@@ -693,8 +733,10 @@ class _SpinRefreshState extends State<_SpinRefresh>
     vsync: this,
     duration: const Duration(milliseconds: 500),
   );
-  late final Animation<double> _turns =
-      CurvedAnimation(parent: _c, curve: AppMotion.curveStandard);
+  late final Animation<double> _turns = CurvedAnimation(
+    parent: _c,
+    curve: AppMotion.curveStandard,
+  );
 
   @override
   void dispose() {

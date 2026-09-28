@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:oil_checker/domain/economy/economy_ranking.dart';
 
-/// UI 전용 환경설정 (계산 로직에는 영향 없음)
+/// UI 전용 환경설정
 ///
 /// DB 스키마를 건드리지 않기 위해 메모리 상태로만 둔다.
 /// 영구 저장이 필요해지면 SharedPreferences로 감싸면 된다.
@@ -35,9 +36,11 @@ final monthlyFillCountProvider =
 /// 절약순위 화면의 절약액 표기 방식
 enum SavingsEmphasis { monthly, perFill }
 
+/// 기본은 1회당 — 월 환산은 곱셈이 한 번 더 들어가 숫자가 커 보이므로
+/// 사용자가 고를 때만 쓴다.
 class SavingsEmphasisNotifier extends Notifier<SavingsEmphasis> {
   @override
-  SavingsEmphasis build() => SavingsEmphasis.monthly;
+  SavingsEmphasis build() => SavingsEmphasis.perFill;
 
   void set(SavingsEmphasis emphasis) => state = emphasis;
 }
@@ -45,4 +48,18 @@ class SavingsEmphasisNotifier extends Notifier<SavingsEmphasis> {
 final savingsEmphasisProvider =
     NotifierProvider<SavingsEmphasisNotifier, SavingsEmphasis>(
   SavingsEmphasisNotifier.new,
+);
+
+/// 절약액 비교 기준 — 기본은 주변 시세(가격 중앙값).
+/// 이 설정은 표시되는 절약액만 바꾸고 순위는 바꾸지 않는다.
+class SavingsBaselineNotifier extends Notifier<SavingsBaseline> {
+  @override
+  SavingsBaseline build() => SavingsBaseline.areaMedian;
+
+  void set(SavingsBaseline baseline) => state = baseline;
+}
+
+final savingsBaselineProvider =
+    NotifierProvider<SavingsBaselineNotifier, SavingsBaseline>(
+  SavingsBaselineNotifier.new,
 );

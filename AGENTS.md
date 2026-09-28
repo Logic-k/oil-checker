@@ -44,7 +44,7 @@ Opinet_API_Free.pdf    # Opinet 무료 API 공식 가이드
 | 항목 | 상태 |
 |---|---|
 | MVP 기능 | ✅ 완성 — 주변 주유소 찾기, 차량 프로필, 경제성 랭킹, 주유 이력, 설정 |
-| 테스트 | ✅ 73개 통과 (`flutter test`) — KATEC 4건 추가 (부산/제주/고정값 회귀) |
+| 테스트 | ✅ 106개 통과 (`flutter test`) — 연료 추론·절약 기준가(주변 시세)·DB v2 마이그레이션 포함 (2026-09-29) |
 | 정적 분석 | ✅ `lib/` analyze 0 이슈 (tool/katec_probe.dart의 print info만 존재) |
 | 웹 배포 | ✅ Vercel 배포 구축 완료 (`vercel.json` + `api/opinet` 프록시) |
 | Android | ✅ debug/release APK 빌드 절차 확립 (에뮬레이터 프록시 우회법 포함) |

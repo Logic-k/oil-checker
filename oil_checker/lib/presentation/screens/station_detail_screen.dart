@@ -5,6 +5,7 @@ import 'package:geolocator/geolocator.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:oil_checker/core/coordinate/katec.dart';
 import 'package:oil_checker/core/format/distance_format.dart';
+import 'package:oil_checker/core/opinet/fuel_products.dart';
 import 'package:oil_checker/core/opinet/opinet_client.dart';
 import 'package:oil_checker/core/opinet/opinet_station.dart';
 import 'package:oil_checker/core/theme/app_theme.dart';
@@ -12,6 +13,7 @@ import 'package:oil_checker/presentation/providers.dart';
 import 'package:oil_checker/presentation/screens/drive_screen.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:oil_checker/presentation/widgets/app_state_views.dart';
+import 'package:oil_checker/presentation/widgets/map_attribution.dart';
 import 'package:oil_checker/presentation/widgets/station_widgets.dart';
 
 /// 주유소 상세 — 지도 히어로 + 고정 하단 액션바
@@ -55,6 +57,7 @@ class StationDetailScreen extends ConsumerWidget {
                 detail: detail,
                 isBest: isBest,
                 savingAmount: saving,
+                myFuelCode: ref.watch(fuelProductCodeProvider),
               ),
       ),
     );
@@ -74,6 +77,7 @@ class _DetailBody extends StatelessWidget {
     required this.station,
     required this.detail,
     required this.isBest,
+    required this.myFuelCode,
     this.savingAmount,
   });
 
@@ -81,6 +85,9 @@ class _DetailBody extends StatelessWidget {
   final OpinetStationDetail detail;
   final bool isBest;
   final double? savingAmount;
+
+  /// 내 차 연료(Opinet 제품 코드) — 유종별 가격에서 강조
+  final String myFuelCode;
 
   @override
   Widget build(BuildContext context) {
@@ -111,9 +118,8 @@ class _DetailBody extends StatelessWidget {
                       ),
                       children: [
                         TileLayer(
-                          urlTemplate:
-                              'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                          userAgentPackageName: 'com.example.oil_checker',
+                          urlTemplate: kOsmTileUrl,
+                          userAgentPackageName: kTileUserAgentPackage,
                         ),
                         MarkerLayer(
                           markers: [
@@ -140,6 +146,12 @@ class _DetailBody extends StatelessWidget {
                         onTap: () => Navigator.of(context).pop(),
                       ),
                     ),
+                  ),
+                  // 본문이 22px 겹쳐 올라오므로 그 위에 둔다
+                  const Positioned(
+                    right: 10,
+                    bottom: 30,
+                    child: OsmAttribution(),
                   ),
                 ],
               ),
@@ -316,7 +328,7 @@ class _DetailBody extends StatelessWidget {
                       ],
                     ),
 
-                    if (detail.prices.isNotEmpty) ...[
+                    if (carFuelPrices(detail.prices).isNotEmpty) ...[
                       const SizedBox(height: 20),
                       const _SubTitle('유종별 가격'),
                       const SizedBox(height: 9),
@@ -330,21 +342,19 @@ class _DetailBody extends StatelessWidget {
                         ),
                         child: Column(
                           children: [
-                            for (final entry
-                                in detail.prices.entries
-                                    .toList()
-                                    .asMap()
-                                    .entries)
+                            for (final (i, (code, price))
+                                in carFuelPrices(detail.prices).indexed)
                               Column(
                                 children: [
-                                  if (entry.key > 0)
+                                  if (i > 0)
                                     Divider(
                                       height: 1,
                                       color: scheme.outlineVariant,
                                     ),
                                   _PriceRow(
-                                    label: _productLabel(entry.value.key),
-                                    price: entry.value.value,
+                                    label: _productLabel(code),
+                                    price: price,
+                                    isMine: code == myFuelCode,
                                   ),
                                 ],
                               ),
@@ -355,7 +365,8 @@ class _DetailBody extends StatelessWidget {
 
                     const SizedBox(height: 12),
                     Text(
-                      '가격은 오피넷 기준 1~2시간마다 갱신돼요. '
+                      '오피넷 가격은 하루 6번(1·2·9·12·16·19시) 갱신돼요. '
+                      '목록 가격은 앱이 최대 6시간 보관한 값이라 현장과 다를 수 있어요. '
                       '영업시간은 오피넷에서 제공하지 않아요.',
                       style: TextStyle(
                         fontSize: 11.5,
@@ -391,32 +402,18 @@ class _DetailBody extends StatelessWidget {
             ),
             child: SafeArea(
               top: false,
-              child: Row(
-                children: [
-                  Container(
-                    width: 56,
-                    height: 56,
-                    alignment: Alignment.center,
-                    decoration: BoxDecoration(
-                      color: scheme.surface,
-                      borderRadius: BorderRadius.circular(AppTheme.radiusCard),
-                      border: Border.all(color: scheme.outlineVariant),
-                    ),
-                    child: const Icon(Icons.favorite_border, size: 20),
+              // 즐겨찾기는 저장 기능이 생길 때 다시 넣는다 (동작 없는 버튼은 두지 않음)
+              child: SizedBox(
+                width: double.infinity,
+                child: FilledButton.icon(
+                  onPressed: () => _showRouteOptions(context, wgs84),
+                  icon: const Icon(
+                    Icons.navigation_outlined,
+                    size: 19,
+                    color: AppColors.best,
                   ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: FilledButton.icon(
-                      onPressed: () => _showRouteOptions(context, wgs84),
-                      icon: const Icon(
-                        Icons.navigation_outlined,
-                        size: 19,
-                        color: AppColors.best,
-                      ),
-                      label: const Text('길안내 시작'),
-                    ),
-                  ),
-                ],
+                  label: const Text('길안내 시작'),
+                ),
               ),
             ),
           ),
@@ -479,7 +476,6 @@ class _DetailBody extends StatelessWidget {
     OpinetClient.productPremium => '고급휘발유',
     OpinetClient.productDiesel => '경유',
     OpinetClient.productLpg => 'LPG',
-    'C004' => '실내등유',
     _ => prodcd,
   };
 }
@@ -646,23 +642,51 @@ class _ServiceChip extends StatelessWidget {
 }
 
 class _PriceRow extends StatelessWidget {
-  const _PriceRow({required this.label, required this.price});
+  const _PriceRow({
+    required this.label,
+    required this.price,
+    this.isMine = false,
+  });
 
   final String label;
   final int price;
 
+  /// 내 차 연료인지 — 라벨 옆에 '내 차' 표시
+  final bool isMine;
+
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 12),
       child: Row(
         children: [
-          Expanded(
-            child: Text(
-              label,
-              style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: isMine ? FontWeight.w800 : FontWeight.w600,
             ),
           ),
+          if (isMine) ...[
+            const SizedBox(width: 6),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+              decoration: BoxDecoration(
+                color: scheme.surfaceContainerHighest,
+                borderRadius: BorderRadius.circular(6),
+              ),
+              child: Text(
+                '내 차',
+                style: TextStyle(
+                  fontSize: 10.5,
+                  fontWeight: FontWeight.w700,
+                  color: scheme.onSurfaceVariant,
+                ),
+              ),
+            ),
+          ],
+          const Spacer(),
           Text(
             '${formatWon(price)}원',
             style: const TextStyle(

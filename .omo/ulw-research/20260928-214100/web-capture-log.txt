@@ -1,0 +1,191 @@
+[info] chromium 149.0.7827.55
+[snap] E:\OpenCode_OilMaker\.omo\ulw-research\20260928-214100\screens\web_01_load_1.2s.png
+[snap] E:\OpenCode_OilMaker\.omo\ulw-research\20260928-214100\screens\web_01_load_2.5s.png
+[snap] E:\OpenCode_OilMaker\.omo\ulw-research\20260928-214100\screens\web_01_load_5s.png
+[nodes:first] count=14
+     0,  16 412x825 [group] 
+    24,  38 364x 56 [img] 
+    24, 112 364x134 [] STEP 1 / 2 어떤 차를 타고 계신가요? 공단 연비 데이터로 절약 금액을 계산해요.
+    24, 338 364x226 [] 모델명을 입력해 검색하세요
+    24, 849 364x 46 [button] 다음
+[snap] E:\OpenCode_OilMaker\.omo\ulw-research\20260928-214100\screens\web_02_onboarding_step1.png
+[click] search field by coord 206,287
+[snap] E:\OpenCode_OilMaker\.omo\ulw-research\20260928-214100\screens\web_03_onboarding_search_K5.png
+[nodes:search] count=22
+     0,  16 412x825 [group] 
+    24,  38 364x 56 [img] 
+    24, 112 364x134 [] STEP 1 / 2 어떤 차를 타고 계신가요? 공단 연비 데이터로 절약 금액을 계산해요.
+    24, 338 364x503 [group] 검색 결과 56
+    24, 366 364x 76 [button] K5(JF) 2.0LPI 6MT(15) 기아 · 일반형 · 복합 9.6 km/L
+    24, 452 364x 76 [button] K5(JF) 2.0LPI 6AT_17MY (15) 기아 · 일반형 · 복합 9.4 km/L
+    24, 538 364x 76 [button] K5(JF) 2.0LPI 6AT(ISG)_17MY (15) 기아 · 일반형 · 복합 9.6 km/L
+    24, 624 364x 76 [button] K5(JF) 2.0LPI 6AT(ISG)(15) 기아 · 일반형 · 복합 9.4 km/L
+    24, 710 364x100 [button] K5(JF) 2.0GDI 플러그인하이브리드 개조차 기아 · 일반형 · 복합 0.0 km/L
+    24, 820 364x 21 [button] K5(JF) 1.6T-GDI 개조차_16인치 타이어 (15) 기아 · 일반형 · 복합 13.0 km/L
+    24, 931 364x100 [button] K5(DL3) PE 2.0LPI 6AT 18인치 (25MY) 기아 · 일반형 · 복합 9.5 km/L
+    24,1041 364x 50 [button] K5(DL3) PE 2.0LPI 6AT 17인치 (25MY) 기아 · 일반형 · 복합 9.8 km/L
+    24, 849 364x 46 [button] 다음
+[click] /K5/ -> 206,404 K5(JF) 2.0LPI 6MT(15) 기아 · 일반형 · 복합 9.6 km/L
+[snap] E:\OpenCode_OilMaker\.omo\ulw-research\20260928-214100\screens\web_04_onboarding_selected.png
+[click] /^다음$/ -> 206,872 다음
+[nodes:step2] count=29
+     0,  16 412x817 [group] 
+    24,  38 364x101 [] STEP 2 / 2 조금만 더 정확하게
+    24, 161 364x274 [img] 사진: Wikimedia Commons (CC 라이선스) K5(JF) 2.0LPI 6MT(15) 기아 · 일반형 표시연비 9.6 km/L
+    24, 457 364x 21 [] 탱크 용량
+   357, 499  11x 30 [] L
+    24, 549 364x 18 [] 차종 제원에서 자동으로 채웠어요 — 다르면 직접 수정해 주세요.
+    24, 576  60x 37 [button] 50L
+    84, 576  60x 37 [button] 67L
+   145, 576  60x 37 [button] 80L
+    24, 635 364x 22 [] 실연비 선택
+    24, 725 364x 21 [] 주유 기록을 2회 이상 남기면 실연비를 자동으로 계산해요.
+    24, 841  56x 54 [button] 
+    90, 845 298x 46 [button] 시작하기
+[snap] E:\OpenCode_OilMaker\.omo\ulw-research\20260928-214100\screens\web_05_onboarding_step2.png
+[click] /시작하기/ -> 239,868 시작하기
+[net] 200 http://127.0.0.1:8899/opinet/aroundAll.do?x=309910.1388313029&y=552073.349593126&radius=5000&prodcd=B027&sort=
+[net] 200 https://router.project-osrm.org/table/v1/driving/126.978,37.5665;127.02272916490035,37.57793384745004;126.9359
+[snap] E:\OpenCode_OilMaker\.omo\ulw-research\20260928-214100\screens\web_06_home_loading.png
+[wait] ok /원\/L|경제 1위/ 35ms
+[nodes:home] count=30
+     0,   0 412x852 [group] 내 주변 주유소 휘발유
+     0,   0 412x852 [button] 1,914 1,918 1,924 1,963 2,098 2,098 2,295 2,385 2,488
+   364,  23  18x 18 [button] 
+   356,  68  44x 44 [button] 드라이브 모드
+   356, 122  44x 44 [button] 위치 지정
+     0, 427 412x425 [group] 
+    16, 447 380x 46 [] 도로 원활 지금 도로 상황이 반영됐어요
+    16, 493 380x149 [button] 경제 1위 GS GS칼텍스 이케이에너지㈜ 강산주유소 4.1km · 도로 왕복 10.0km · 예상 13분 1,840원/L +34,147원 L당 545원 저렴 · 우회비용 −2,91
+    16, 652 380x101 [button] 2 S S-OIL 구도일주유소 두꺼비 4.7km · 예상 15분 1,841원/L +33,139원 L당 544원 저렴 · 우회비용 −3,853원
+    16, 763 380x 89 [button] 4 HD HD현대오일뱅크 코리아상사 연세주유소 3.8km · 예상 15분 1,844원/L +32,874원 L당 541원 저렴 · 우회비용 −3,914원
+    16, 874 380x101 [button] 6 S S-OIL (주)미래아스팔트 신우주유소 4.9km · 예상 16분 1,846원/L +32,678원 L당 539원 저렴 · 우회비용 −3,974원
+    16, 985 380x101 [button] 7 HD HD현대오일뱅크 (주)가재울뉴타운주유소 5.0km · 예상 17분 1,846원/L +32,532원 L당 539원 저렴 · 우회비용 −4,120원
+    16,1096 380x  6 [button] 3 HD HD현대오일뱅크 (주)성북주유소 4.3km · 예상 13분 1,849원/L +33,049원 L당 536원 저렴 · 우회비용 −3,399원
+     0, 853 103x 62 [button] 홈
+   103, 853 103x 62 [button] 절약순위
+   206, 853 103x 62 [button] 주유이력
+   309, 853 103x 62 [button] 설정
+[snap] E:\OpenCode_OilMaker\.omo\ulw-research\20260928-214100\screens\web_07_home.png
+[click] /절약순위/ -> 155,884 절약순위
+[snap] E:\OpenCode_OilMaker\.omo\ulw-research\20260928-214100\screens\web_08a_ranking_t1.2s.png
+[wait] ok /원/ 14ms
+[nodes:ranking] count=38
+     0,   0 412x 56 [] 절약순위
+   328,   8  40x 40 [button] 거리순으로
+   368,   8  40x 40 [button] 새로고침
+     0,  56 412x 52 [group] 
+    16,  56  63x 52 [button] 전체
+    79,  56  65x 52 [button] 1km
+   144,  56  65x 52 [button] 3km
+   209,  56  65x 52 [button] 5km
+   275,  56  73x 52 [button] 10km
+     0, 108 412x744 [group] 
+    16, 108 380x320 [button] 1위 표시연비 9.6 km/L 기준 도로 원활 월 2회 주유 기준, 여기서 넣으면 68,295 원 아껴요 GS 이케이에너지㈜ 강산주유소 GS칼텍스 · 내 위치에서 4.1km 1,8
+    16, 440 380x101 [button] 2 S S-OIL 구도일주유소 두꺼비 4.7km · 도로 왕복 13.6km · 예상 15분 1,841원/L +33,139원 L당 544원 저렴 · 우회비용 −3,853원
+    16, 550 380x101 [button] 3 HD HD현대오일뱅크 (주)성북주유소 4.3km · 도로 왕복 12.3km · 예상 13분 1,849원/L +33,049원 L당 536원 저렴 · 우회비용 −3,399원
+    16, 660 380x101 [button] 4 HD HD현대오일뱅크 코리아상사 연세주유소 3.8km · 도로 왕복 14.0km · 예상 15분 1,844원/L +32,874원 L당 541원 저렴 · 우회비용 −3,914원
+    16, 770 380x 82 [button] 5 SK SK에너지 중앙에너비스 동교지점 4.6km · 도로 왕복 12.0km · 예상 13분 1,855원/L +32,707원 L당 530원 저렴 · 우회비용 −3,333원
+    16, 880 380x101 [button] 6 S S-OIL (주)미래아스팔트 신우주유소 4.9km · 도로 왕복 14.0km · 예상 16분 1,846원/L +32,678원 L당 539원 저렴 · 우회비용 −3,974원
+    16, 990 380x101 [button] 7 HD HD현대오일뱅크 (주)가재울뉴타운주유소 5.0km · 도로 왕복 14.5km · 예상 17분 1,846원/L +32,532원 L당 539원 저렴 · 우회비용 −4,120원
+    16,1100 380x  2 [button] 8 HD HD현대오일뱅크 ㈜제일주유소 3.9km · 도로 왕복 7.9km · 예상 12분 1,879원/L +31,921원 L당 506원 저렴 · 우회비용 −2,487원
+     0, 853 103x 62 [button] 홈
+   103, 853 103x 62 [button] 절약순위
+   206, 853 103x 62 [button] 주유이력
+   309, 853 103x 62 [button] 설정
+[snap] E:\OpenCode_OilMaker\.omo\ulw-research\20260928-214100\screens\web_08b_ranking.png
+[snap] E:\OpenCode_OilMaker\.omo\ulw-research\20260928-214100\screens\web_08c_ranking_scrolled.png
+[snap] E:\OpenCode_OilMaker\.omo\ulw-research\20260928-214100\screens\web_08d_ranking_scrolled2.png
+[click] /주유이력/ -> 258,884 주유이력
+[nodes:history] count=19
+     0,   0 412x 56 [] 주유이력
+     0,  56 412x796 [group] 
+    16,  56 380x149 [] K5(JF) 2.0LPI 6MT(15) 기록 0회 실연비 — km/L 표시연비 9.6 km/L
+    16, 223 380x 31 [] 최근 기록 누적 0원
+    16, 254 380x257 [] 첫 주유를 기록해보세요 두 번째 기록부터 실연비가 계산돼요.
+   265, 780 131x 56 [button] 주유 기록
+     0, 853 103x 62 [button] 홈
+   103, 853 103x 62 [button] 절약순위
+   206, 853 103x 62 [button] 주유이력
+   309, 853 103x 62 [button] 설정
+[snap] E:\OpenCode_OilMaker\.omo\ulw-research\20260928-214100\screens\web_09a_history.png
+[click] /기록 추가|기록하기|주유 기록|추가/ -> 331,808 주유 기록
+[nodes:history-add] count=13
+     0,   0 412x915 [] Dialog
+    20, 519 372x372 [group] 
+    20, 541 372x 34 [] 주유 기록 추가
+    20, 845 372x 46 [button] 저장
+[snap] E:\OpenCode_OilMaker\.omo\ulw-research\20260928-214100\screens\web_09b_history_add.png
+[click] /^설정$/ -> 361,884 설정
+[nodes:settings] count=27
+     0,   0 412x 56 [] 설정
+     0,  56 412x796 [group] 
+     0,  56 412x106 [img] K5(JF) 2.0LPI 6MT(15) 휘발유 · 9.6 km/L · 68L 활성
+     0, 162 412x 31 [] 차량 프로필
+     0, 193 412x 66 [button] 차량 추가
+     0, 279 412x 31 [] 계산 기준
+     0, 310 412x269 [group] 절약액 표기 절약순위 1위 카드에 적용돼요 월 주유 횟수 절약액 월 환산에 쓰여요 2회 연비 기준 표시연비를 사용 중 9.6 km/L 연료 종류 휘발유
+   260, 331  63x 31 [button] 월 환산
+   322, 331  55x 31 [button] 1회당
+   262, 400  38x 38 [button] 
+   342, 400  38x 38 [button] 
+     0, 599 412x 30 [] 앱
+     0, 629 412x214 [switch] 다크 모드 야간 주행에 눈이 편해요 Opinet API 키 웹은 서버측 프록시가 주입, 네이티브는 빌드 시 dart-define 서버측 주입 앱 버전 v1.0.0
+     0, 853 103x 62 [button] 홈
+   103, 853 103x 62 [button] 절약순위
+   206, 853 103x 62 [button] 주유이력
+   309, 853 103x 62 [button] 설정
+[snap] E:\OpenCode_OilMaker\.omo\ulw-research\20260928-214100\screens\web_10a_settings.png
+[nodes:settings-scrolled] count=27
+     0,   0 412x 56 [] 설정
+     0,  56 412x796 [group] 
+     0,  56 412x 83 [img] K5(JF) 2.0LPI 6MT(15) 휘발유 · 9.6 km/L · 68L 활성
+     0, 139 412x 31 [] 차량 프로필
+     0, 170 412x 66 [button] 차량 추가
+     0, 256 412x 31 [] 계산 기준
+     0, 287 412x269 [group] 절약액 표기 절약순위 1위 카드에 적용돼요 월 주유 횟수 절약액 월 환산에 쓰여요 2회 연비 기준 표시연비를 사용 중 9.6 km/L 연료 종류 휘발유
+   260, 308  63x 31 [button] 월 환산
+   322, 308  55x 31 [button] 1회당
+   262, 377  38x 38 [button] 
+   342, 377  38x 38 [button] 
+     0, 576 412x 30 [] 앱
+     0, 606 412x214 [switch] 다크 모드 야간 주행에 눈이 편해요 Opinet API 키 웹은 서버측 프록시가 주입, 네이티브는 빌드 시 dart-define 서버측 주입 앱 버전 v1.0.0
+     0, 853 103x 62 [button] 홈
+   103, 853 103x 62 [button] 절약순위
+   206, 853 103x 62 [button] 주유이력
+   309, 853 103x 62 [button] 설정
+[snap] E:\OpenCode_OilMaker\.omo\ulw-research\20260928-214100\screens\web_10b_settings_scrolled.png
+[snap] E:\OpenCode_OilMaker\.omo\ulw-research\20260928-214100\screens\web_11a_dark_settings.png
+[click] /^홈$/ -> 52,884 홈
+[snap] E:\OpenCode_OilMaker\.omo\ulw-research\20260928-214100\screens\web_11b_dark_home.png
+[click] /절약순위/ -> 155,884 절약순위
+[snap] E:\OpenCode_OilMaker\.omo\ulw-research\20260928-214100\screens\web_11c_dark_ranking.png
+[click] ranking card
+[nodes:dark-detail] count=46
+     0,   0 412x 56 [] 절약순위
+   328,   8  40x 40 [button] 거리순으로
+   368,   8  40x 40 [button] 새로고침
+     0,  56 412x 52 [group] 
+    16,  56  63x 52 [button] 전체
+    79,  56  65x 52 [button] 1km
+   144,  56  65x 52 [button] 3km
+   209,  56  65x 52 [button] 5km
+   275,  56  73x 52 [button] 10km
+     0, 108 412x744 [group] 
+    16,-142 380x 48 [button] 1위 표시연비 9.6 km/L 기준 도로 원활 월 2회 주유 기준, 여기서 넣으면 68,295 원 아껴요 GS 이케이에너지㈜ 강산주유소 GS칼텍스 · 내 위치에서 4.1km 1,8
+    16, -82 380x101 [button] 2 S S-OIL 구도일주유소 두꺼비 4.7km · 도로 왕복 13.6km · 예상 15분 1,841원/L +33,139원 L당 544원 저렴 · 우회비용 −3,853원
+    16, 108 380x 21 [button] 3 HD HD현대오일뱅크 (주)성북주유소 4.3km · 도로 왕복 12.3km · 예상 13분 1,849원/L +33,049원 L당 536원 저렴 · 우회비용 −3,399원
+    16, 138 380x101 [button] 4 HD HD현대오일뱅크 코리아상사 연세주유소 3.8km · 도로 왕복 14.0km · 예상 15분 1,844원/L +32,874원 L당 541원 저렴 · 우회비용 −3,914원
+    16, 248 380x101 [button] 5 SK SK에너지 중앙에너비스 동교지점 4.6km · 도로 왕복 12.0km · 예상 13분 1,855원/L +32,707원 L당 530원 저렴 · 우회비용 −3,333원
+    16, 358 380x101 [button] 6 S S-OIL (주)미래아스팔트 신우주유소 4.9km · 도로 왕복 14.0km · 예상 16분 1,846원/L +32,678원 L당 539원 저렴 · 우회비용 −3,974원
+    16, 468 380x101 [button] 7 HD HD현대오일뱅크 (주)가재울뉴타운주유소 5.0km · 도로 왕복 14.5km · 예상 17분 1,846원/L +32,532원 L당 539원 저렴 · 우회비용 −4,120원
+    16, 578 380x 99 [button] 8 HD HD현대오일뱅크 ㈜제일주유소 3.9km · 도로 왕복 7.9km · 예상 12분 1,879원/L +31,921원 L당 506원 저렴 · 우회비용 −2,487원
+    16, 686 380x101 [button] 9 SK SK에너지 행촌제2주유소 3.3km · 도로 왕복 10.0km · 예상 11분 1,875원/L +31,854원 L당 510원 저렴 · 우회비용 −2,826원
+    16, 796 380x 56 [button] 10 SK SK에너지 (주)안국에너지 삼보셀프주유소 4.3km · 도로 왕복 8.5km · 예상 13분 1,878원/L +31,787원 L당 507원 저렴 · 우회비용 −2,689
+    16, 906 380x 99 [button] 11 S S-OIL 다산주유소 3.3km · 도로 왕복 8.1km · 예상 10분 1,884원/L +31,699원 L당 501원 저렴 · 우회비용 −2,369원
+    16,1014 380x 88 [button] 12 HD HD현대오일뱅크 HD현대오일뱅크㈜직영 아리랑주유소 4.9km · 도로 왕복 9.9km · 예상 15분 1,876원/L +31,494원 L당 509원 저렴 · 우회비용 −
+     0, 853 103x 62 [button] 홈
+   103, 853 103x 62 [button] 절약순위
+   206, 853 103x 62 [button] 주유이력
+   309, 853 103x 62 [button] 설정
+[snap] E:\OpenCode_OilMaker\.omo\ulw-research\20260928-214100\screens\web_11d_dark_detail.png
