@@ -179,7 +179,7 @@ class _FuelGaugePainter extends CustomPainter {
     canvas.drawArc(
       Rect.fromCircle(center: center, radius: radius),
       math.pi, // 왼쪽(E)부터
-      _sweep,
+      -_sweep, // 음수 스윕 — 상부 반원으로 (양수면 아래로 그려져 화면 밖)
       false,
       track,
     );
