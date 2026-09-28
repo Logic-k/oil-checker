@@ -251,11 +251,7 @@ class _DriveScreenState extends ConsumerState<DriveScreen> {
       attributionButtonPosition: ml.AttributionButtonPosition.bottomLeft,
       trackCameraPosition: true,
       onCameraMove: _onCameraMove,
-      onMapClick: (_, _) {
-        if (_islandExpanded) {
-          setState(() => _islandExpanded = false);
-        }
-      },
+      onMapClick: (point, _) => unawaited(_onMapTap(point)),
     );
   }
 
@@ -396,12 +392,69 @@ class _DriveScreenState extends ConsumerState<DriveScreen> {
           },
       ],
     });
+    _blockCenters = {
+      for (final s in stations)
+        s.uniId: () {
+          final c = _stationLngLat(s);
+          return ml.LatLng(c[1], c[0]);
+        }(),
+    };
+    _blockHeights = {
+      for (final s in stations) s.uniId: s.uniId == bestId ? 78.0 : 52.0,
+    };
     _paintStations();
   }
 
   List<double> _stationLngLat(OpinetStation s) {
     final wgs = katecToWgs84(x: s.gisX, y: s.gisY);
     return [wgs.longitude, wgs.latitude];
+  }
+
+  /// 블록 탭 히트 테스트용 — uniId → footprint 중심 좌표/높이.
+  Map<String, ml.LatLng> _blockCenters = const {};
+  Map<String, double> _blockHeights = const {};
+
+  /// 지도 빈 곳 탭: 블록 프리즘 몸통까지 잡는 화면 좌표 히트 테스트.
+  /// fill-extrusion은 ground footprint만 feature query에 걸려서
+  /// 기울어진 3D에서 몸통 탭이 빗나간다.
+  Future<void> _onMapTap(math.Point<double> tap) async {
+    final hit = await _blockHitTest(tap);
+    if (!mounted) return;
+    if (hit != null) {
+      setState(() {
+        _selectedStationId = hit;
+        _islandExpanded = true;
+      });
+      return;
+    }
+    if (_islandExpanded) setState(() => _islandExpanded = false);
+  }
+
+  Future<String?> _blockHitTest(math.Point<double> tap) async {
+    final map = _map;
+    if (map == null || _blockCenters.isEmpty) return null;
+    final lat = map.cameraPosition?.target.latitude ?? 37.5;
+    final mpp = await map.getMetersPerPixelAtLatitude(lat);
+    if (mpp <= 0) return null;
+    final ids = _blockCenters.keys.toList(growable: false);
+    final pts = await map.toScreenLocationBatch(_blockCenters.values);
+    String? bestId;
+    var bestDist = double.infinity;
+    for (var i = 0; i < pts.length; i++) {
+      final base = pts[i];
+      // 프리즘의 화면 위 높이 — 피치 투영까지 관대하게 h/mpp로 잡는다
+      final topPx = ((_blockHeights[ids[i]] ?? 52) / mpp).clamp(0.0, 220.0);
+      final dx = (tap.x - base.x).abs().toDouble();
+      final dy = (base.y - tap.y).toDouble(); // 양수 = footprint 위쪽
+      if (dx <= 44 && dy >= -24 && dy <= topPx + 36) {
+        final d = dx * dx + dy * dy;
+        if (d < bestDist) {
+          bestDist = d;
+          bestId = ids[i];
+        }
+      }
+    }
+    return bestId;
   }
 
   /// 주유소 좌표 중심의 소형 12각형 footprint (반경 ~16m) —
