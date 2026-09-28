@@ -194,6 +194,8 @@ class _RankingBody extends ConsumerWidget {
                             savingAmount: shown[i].result.score,
                             detourKm: shown[i].result.detourKm,
                             driveTimeMin: shown[i].result.driveTimeMin,
+                            detourCost: shown[i].result.detourCost,
+                            baselinePrice: result.baselinePrice,
                             onTap: position == null ? null : open,
                           ),
                           openBuilder: (context, _) => StationDetailScreen(
@@ -315,19 +317,22 @@ class _BestCard extends ConsumerWidget {
             children: [
               Row(
                 children: [
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 9, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: AppColors.best,
-                      borderRadius: BorderRadius.circular(7),
-                    ),
-                    child: const Text(
-                      '1위',
-                      style: TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w800,
-                        color: AppColors.ink,
+                  // 1위 메달 — 팝인으로 확정감
+                  PopIn(
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 9, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: AppColors.best,
+                        borderRadius: BorderRadius.circular(7),
+                      ),
+                      child: const Text(
+                        '1위',
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w800,
+                          color: AppColors.ink,
+                        ),
                       ),
                     ),
                   ),
@@ -426,22 +431,9 @@ class _BestCard extends ConsumerWidget {
               const SizedBox(height: 16),
               Row(
                 children: [
-                  Container(
-                    width: 44,
-                    height: 44,
-                    alignment: Alignment.center,
-                    decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Text(
-                      AppColors.brandShort(station.brandCode),
-                      style: const TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w800,
-                        color: Colors.white,
-                      ),
-                    ),
+                  BrandBadge(
+                    brandCode: station.brandCode,
+                    size: 44,
                   ),
                   const SizedBox(width: 12),
                   Expanded(

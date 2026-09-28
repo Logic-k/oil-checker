@@ -12,6 +12,7 @@ import 'package:oil_checker/presentation/screens/home_screen.dart';
 import 'package:oil_checker/presentation/screens/ranking_screen.dart';
 import 'package:oil_checker/presentation/screens/settings_screen.dart';
 import 'package:oil_checker/presentation/widgets/app_state_views.dart';
+import 'package:oil_checker/presentation/widgets/splash_intro.dart';
 
 void main() {
   // 네이티브 스플래시를 Flutter 첫 프레임까지 유지 → 로딩 점프컷 방지
@@ -52,6 +53,9 @@ class _HomeShellState extends ConsumerState<HomeShell> {
   int _index = 0;
   bool _splashRemoved = false;
 
+  /// 첫 실행 연료 게이지 인트로 — 앱 실행당 1회 (이 State는 앱 수명과 같음)
+  bool _introDone = false;
+
   @override
   void dispose() {
     _pageController.dispose();
@@ -85,33 +89,44 @@ class _HomeShellState extends ConsumerState<HomeShell> {
       });
     }
 
-    return Scaffold(
-      body: _FadeInOnce(
-        child: profileAsync.when(
-          loading: () => const AppSkeleton(),
-          error: (e, _) => AppEmptyView(
-            icon: Icons.error_outline,
-            title: '데이터베이스를 열 수 없어요',
-            message: '$e',
+    final reduceMotion = AppMotion.reduceMotion(context);
+
+    return Stack(
+      children: [
+        Scaffold(
+          body: _FadeInOnce(
+            child: profileAsync.when(
+              loading: () => const AppSkeleton(),
+              error: (e, _) => AppEmptyView(
+                icon: Icons.error_outline,
+                title: '데이터베이스를 열 수 없어요',
+                message: '$e',
+              ),
+              data: (profile) => profile == null
+                  ? const CarSetupScreen()
+                  : PageView(
+                      controller: _pageController,
+                      // 하단 탭 앱 — 스와이프는 막고 탭 시 슬라이드 전환만
+                      physics: const NeverScrollableScrollPhysics(),
+                      children: const [
+                        _KeepAliveTab(child: HomeScreen()),
+                        _KeepAliveTab(child: RankingScreen()),
+                        _KeepAliveTab(child: HistoryScreen()),
+                        _KeepAliveTab(child: SettingsScreen()),
+                      ],
+                    ),
+            ),
           ),
-          data: (profile) => profile == null
-              ? const CarSetupScreen()
-              : PageView(
-                  controller: _pageController,
-                  // 하단 탭 앱 — 스와이프는 막고 탭 시 슬라이드 전환만
-                  physics: const NeverScrollableScrollPhysics(),
-                  children: const [
-                    _KeepAliveTab(child: HomeScreen()),
-                    _KeepAliveTab(child: RankingScreen()),
-                    _KeepAliveTab(child: HistoryScreen()),
-                    _KeepAliveTab(child: SettingsScreen()),
-                  ],
-                ),
+          bottomNavigationBar: hasProfile
+              ? AppNavBar(index: _index, onChanged: _onTab)
+              : null,
         ),
-      ),
-      bottomNavigationBar: hasProfile
-          ? AppNavBar(index: _index, onChanged: _onTab)
-          : null,
+        // 첫 프레임 위에 덮는 인트로 — 네이비 스플래시에서 자연스럽게 이어짐
+        if (!_introDone && !reduceMotion)
+          Positioned.fill(
+            child: SplashIntro(onDone: () => setState(() => _introDone = true)),
+          ),
+      ],
     );
   }
 }
@@ -129,8 +144,7 @@ class _FadeInOnce extends StatelessWidget {
       tween: Tween(begin: 0, end: 1),
       duration: const Duration(milliseconds: 450),
       curve: AppMotion.curveEnter,
-      builder: (context, t, child) =>
-          Opacity(opacity: t, child: child),
+      builder: (context, t, child) => Opacity(opacity: t, child: child),
       child: child,
     );
   }
@@ -167,11 +181,7 @@ class AppNavBar extends StatelessWidget {
 
   static const _items = <({IconData icon, IconData active, String label})>[
     (icon: Icons.home_outlined, active: Icons.home, label: '홈'),
-    (
-      icon: Icons.bar_chart_outlined,
-      active: Icons.bar_chart,
-      label: '절약순위'
-    ),
+    (icon: Icons.bar_chart_outlined, active: Icons.bar_chart, label: '절약순위'),
     (icon: Icons.schedule_outlined, active: Icons.schedule, label: '주유이력'),
     (icon: Icons.settings_outlined, active: Icons.settings, label: '설정'),
   ];
@@ -251,8 +261,7 @@ class _NavIcon extends StatelessWidget {
       tween: Tween(begin: 0.75, end: 1),
       duration: const Duration(milliseconds: 350),
       curve: Curves.easeOutBack,
-      builder: (context, t, child) =>
-          Transform.scale(scale: t, child: child),
+      builder: (context, t, child) => Transform.scale(scale: t, child: child),
       child: Icon(icon, size: 23, color: color),
     );
   }

@@ -60,19 +60,76 @@ class CarSpecEntry {
   }
 }
 
+/// 연료탱크 용량 규칙 — fuel_tank_capacity.csv의 한 행.
+/// [parts]는 AND 조건: 정규화된 모델명이 모든 부분을 포함해야 매칭.
+class _TankRule {
+  const _TankRule(this.parts, this.liters);
+
+  final List<String> parts;
+  final double liters;
+
+  /// 매칭 우선순위 — 부분어 총 길이가 긴 규칙이 더 구체적.
+  int get specificity =>
+      parts.fold(0, (sum, p) => sum + p.length);
+}
+
 /// 차종·연비 CSV 로더
 ///
 /// 한국에너지공단_자동차 표시연비 정보 (data.go.kr /15083023/fileData.do) 파일을
 /// 앱에 임베드해 파싱한다. API 호출이 아니므로 Opinet 일일 한도와 무관.
 class CarSpecLoader {
-  CarSpecLoader._(this._entries);
+  CarSpecLoader._(this._entries, this._tankRules);
 
   final List<CarSpecEntry> _entries;
+  final List<_TankRule> _tankRules;
 
-  /// CSV 문자열을 파싱해 로더 생성
-  factory CarSpecLoader.fromCsv(String csv) {
-    return CarSpecLoader._(CarSpecLoader.parseCsv(csv));
+  /// CSV 문자열을 파싱해 로더 생성. [tankCsv]는 선택 —
+  /// 모델명 패턴→연료탱크 용량 매핑(fuel_tank_capacity.csv 형식).
+  factory CarSpecLoader.fromCsv(String csv, {String? tankCsv}) {
+    return CarSpecLoader._(
+      CarSpecLoader.parseCsv(csv),
+      tankCsv == null ? const [] : _parseTankCsv(tankCsv),
+    );
   }
+
+  /// 모델명 정규화 — 소문자화 + 공백·괄호·기호 제거
+  static String _norm(String s) =>
+      s.toLowerCase().replaceAll(RegExp(r'[^a-z0-9가-힣]'), '');
+
+  /// 연료탱크 용량 CSV 파싱 (pattern,liters)
+  static List<_TankRule> _parseTankCsv(String csv) {
+    final rules = <_TankRule>[];
+    for (final line in csv.split('\n')) {
+      final t = line.trim();
+      if (t.isEmpty || t.startsWith('#')) continue;
+      final comma = t.lastIndexOf(',');
+      if (comma < 0) continue;
+      final pattern = t.substring(0, comma).trim();
+      final liters = double.tryParse(t.substring(comma + 1).trim());
+      if (liters == null || pattern.isEmpty || pattern == 'pattern') {
+        continue;
+      }
+      rules.add(_TankRule(
+        pattern.split('+').map(_norm).where((p) => p.isNotEmpty).toList(),
+        liters,
+      ));
+    }
+    rules.sort((a, b) => b.specificity.compareTo(a.specificity));
+    return rules;
+  }
+
+  /// 모델명 → 공칭 연료탱크 용량(L).
+  /// 반환값: 용량 / 0이면 전기·수소차(주유 대상 아님) / null이면 모름.
+  double? tankCapacityL(String modelName) {
+    final norm = _norm(modelName);
+    for (final rule in _tankRules) {
+      if (rule.parts.every(norm.contains)) return rule.liters;
+    }
+    return null;
+  }
+
+  /// 주유 대상이 아닌 전기·수소 차종 여부
+  bool isElectric(String modelName) => tankCapacityL(modelName) == 0;
 
   /// CSV 문자열을 파싱해 [CarSpecEntry] 목록 반환
   static List<CarSpecEntry> parseCsv(String csv) {

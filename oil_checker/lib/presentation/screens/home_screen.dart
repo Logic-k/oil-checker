@@ -645,9 +645,18 @@ class _StationSheet extends StatelessWidget {
       closedBuilder: (context, open) => StationCard(
         station: station,
         isBest: isBest,
+        rank: () {
+          final ranked = ranking?.ranked;
+          if (ranked == null) return null;
+          final idx =
+              ranked.indexWhere((e) => e.station.uniId == station.uniId);
+          return idx < 0 ? null : idx + 1;
+        }(),
         savingAmount: entry?.result.score,
         detourKm: isBest ? entry?.result.detourKm : null,
         driveTimeMin: entry?.result.driveTimeMin,
+        detourCost: entry?.result.detourCost,
+        baselinePrice: ranking?.baselinePrice,
         onTap: open,
       ),
       openBuilder: (context, _) => StationDetailScreen(

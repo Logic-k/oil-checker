@@ -3,6 +3,7 @@ import 'package:oil_checker/core/format/distance_format.dart';
 import 'package:oil_checker/core/opinet/opinet_station.dart';
 import 'package:oil_checker/core/theme/app_theme.dart';
 import 'package:oil_checker/core/traffic/congestion.dart';
+import 'package:oil_checker/presentation/widgets/motion_widgets.dart';
 
 /// 도로 혼잡 단계 칩 — 원활/보통/혼잡
 class CongestionChip extends StatelessWidget {
@@ -123,6 +124,44 @@ class PriceMarker extends StatelessWidget {
   }
 }
 
+/// 정유사 브랜드 배지 — 브랜드 컬러 배경 + 2~3자 약자.
+/// 로고 파일 없이 정유사 브랜드를 즉시 식별하게 하는 워드마크 배지.
+class BrandBadge extends StatelessWidget {
+  const BrandBadge({
+    super.key,
+    required this.brandCode,
+    this.size = 20,
+  });
+
+  final String brandCode;
+  final double size;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = AppColors.brand(brandCode);
+    final label = AppColors.brandShort(brandCode);
+    return Container(
+      width: size,
+      height: size,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        color: color,
+        borderRadius: BorderRadius.circular(size * 0.28),
+      ),
+      child: Text(
+        label,
+        maxLines: 1,
+        style: TextStyle(
+          fontSize: size * 0.4,
+          fontWeight: FontWeight.w900,
+          letterSpacing: -0.5,
+          color: Colors.white,
+        ),
+      ),
+    );
+  }
+}
+
 class _TailPainter extends CustomPainter {
   const _TailPainter(this.color);
   final Color color;
@@ -149,6 +188,8 @@ class StationCard extends StatelessWidget {
     this.savingAmount,
     this.detourKm,
     this.driveTimeMin,
+    this.detourCost,
+    this.baselinePrice,
     this.isBest = false,
     this.rank,
     this.onTap,
@@ -160,11 +201,21 @@ class StationCard extends StatelessWidget {
   final double? savingAmount;
   final double? detourKm;
   final double? driveTimeMin;
+
+  /// 우회비용(원) = 연료비+시간비 — 절약 가치의 근거 표시용.
+  final double? detourCost;
+
+  /// 기준 주유소(가장 가까운 곳) 리터당 가격 — 가격차 계산용.
+  final int? baselinePrice;
   final bool isBest;
   final int? rank;
   final VoidCallback? onTap;
 
   bool get _isSaving => (savingAmount ?? 0) > 0;
+
+  /// 기준 주유소 대비 리터당 가격차 (양수면 이 주유소가 쌈)
+  int get _perLiterDiff =>
+      baselinePrice == null ? 0 : baselinePrice! - station.price;
 
   @override
   Widget build(BuildContext context) {
@@ -225,6 +276,11 @@ class StationCard extends StatelessWidget {
                                         _RankBadge(rank: rank!),
                                         const SizedBox(width: 8),
                                       ],
+                                      BrandBadge(
+                                        brandCode: station.brandCode,
+                                        size: 16,
+                                      ),
+                                      const SizedBox(width: 5),
                                       Flexible(
                                         child: Text(
                                           AppColors
@@ -310,6 +366,29 @@ class StationCard extends StatelessWidget {
                                           : AppColors.mutedSoft,
                                     ),
                                   ),
+                                // 절약 가치 근거 — 리터당 가격차 + 우회비용
+                                if (_perLiterDiff != 0 ||
+                                    detourCost != null) ...[
+                                  const SizedBox(height: 3),
+                                  Text(
+                                    [
+                                      if (_perLiterDiff > 0)
+                                        'L당 $_perLiterDiff원 저렴'
+                                      else if (_perLiterDiff < 0)
+                                        'L당 ${-_perLiterDiff}원 비쌈',
+                                      if (detourCost != null)
+                                        '우회비용 −${formatWon(detourCost!.round())}원',
+                                    ].join(' · '),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    textAlign: TextAlign.end,
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w600,
+                                      color: scheme.onSurfaceVariant,
+                                    ),
+                                  ),
+                                ],
                               ],
                             ),
                           ],
@@ -376,15 +455,24 @@ class _RankBadge extends StatelessWidget {
   const _RankBadge({required this.rank});
   final int rank;
 
+  /// 1위 골드 / 2위 실버 / 3위 브론즈 — 상위권은 메달 컬러 배지.
+  Color get _bg => switch (rank) {
+        1 => AppColors.best,
+        2 => const Color(0xFF9AA4B2),
+        3 => const Color(0xFFB97A4A),
+        _ => Colors.transparent,
+      };
+
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    return Container(
+    final medal = rank <= 3;
+    final badge = Container(
       width: 22,
       height: 22,
       alignment: Alignment.center,
       decoration: BoxDecoration(
-        color: scheme.surfaceContainerHighest,
+        color: medal ? _bg : scheme.surfaceContainerHighest,
         borderRadius: BorderRadius.circular(7),
       ),
       child: Text(
@@ -392,9 +480,11 @@ class _RankBadge extends StatelessWidget {
         style: TextStyle(
           fontSize: 11.5,
           fontWeight: FontWeight.w800,
-          color: scheme.onSurface,
+          color: medal ? AppColors.ink : scheme.onSurface,
         ),
       ),
     );
+    // 상위권 메달은 팝인으로 순위감을 준다
+    return medal ? PopIn(child: badge) : badge;
   }
 }

@@ -2,6 +2,54 @@ import 'package:flutter/material.dart';
 import 'package:oil_checker/core/theme/app_motion.dart';
 import 'package:oil_checker/core/theme/app_theme.dart';
 
+/// 빈 상태 아이콘의 부유(±4px) 애니메이션 — 2.5s 주기, 무한 반복.
+/// 접근성: 동작 줄이기 설정 시 정지.
+class _FloatIcon extends StatefulWidget {
+  const _FloatIcon({required this.child});
+
+  final Widget child;
+
+  @override
+  State<_FloatIcon> createState() => _FloatIconState();
+}
+
+class _FloatIconState extends State<_FloatIcon>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _c = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 2500),
+  );
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (AppMotion.reduceMotion(context)) {
+      _c.stop();
+    } else if (!_c.isAnimating) {
+      _c.repeat(reverse: true);
+    }
+  }
+
+  @override
+  void dispose() {
+    _c.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _c,
+      builder: (context, child) => Transform.translate(
+        offset: Offset(
+            0, 4 * Curves.easeInOut.transform(1 - _c.value) - 2),
+        child: child,
+      ),
+      child: widget.child,
+    );
+  }
+}
+
 /// 로딩 스켈레톤 — 스피너 대신 들어올 레이아웃을 미리 보여준다.
 class AppSkeleton extends StatefulWidget {
   const AppSkeleton({
@@ -169,14 +217,16 @@ class AppEmptyView extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Container(
-              width: 76,
-              height: 76,
-              decoration: BoxDecoration(
-                color: scheme.surfaceContainerHighest,
-                borderRadius: BorderRadius.circular(24),
+            _FloatIcon(
+              child: Container(
+                width: 76,
+                height: 76,
+                decoration: BoxDecoration(
+                  color: scheme.surfaceContainerHighest,
+                  borderRadius: BorderRadius.circular(24),
+                ),
+                child: Icon(icon, size: 34, color: AppColors.mutedSoft),
               ),
-              child: Icon(icon, size: 34, color: AppColors.mutedSoft),
             ),
             const SizedBox(height: 16),
             Text(

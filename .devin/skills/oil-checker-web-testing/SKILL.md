@@ -37,3 +37,14 @@ Open http://localhost:8899 in Chrome. The proxy injects `OPINET_API_CODE` (env) 
 ## Devin Secrets Needed
 
 - `OPINET_API_CODE` (org secret) — approve so the proxy can be started with `env={"OPINET_API_CODE": "secret:org:OPINET_API_CODE"}`; without it only error-state UI is verifiable.
+
+## Korean text input & animation capture
+
+- **한글 입력**: xdotool `type` can't inject Korean into Flutter web's hidden `flt-text-editing-host input`. Drive it by dispatching an `input` event on the ACTIVE host input (the non-offscreen, non-submit one) via browser console/JS, e.g. set `.value = '쏘나타'` then `dispatchEvent(new Event('input', {bubbles: true}))`.
+- **Sub-2s animations** (splash intro, count-up): live screenshots always miss them — record 60fps, then extract frames with `ffmpeg -i rec.mkv -vf fps=60 out%04d.png` and diff.
+- **Fresh onboarding**: Drift profile persists — clear IndexedDB + localStorage in devtools, then reload to see CarSetupScreen again.
+- `browser_console` surfaces maplibre_gl web layer validation errors that the app's `catch (_)` swallows — always check it when markers look missing.
+
+## Asset bundling gotcha
+
+- Flutter `assets/dir/` declarations in pubspec.yaml are NOT recursive — subdirectory assets (e.g. `assets/cars/real/*.webp`) need their own pubspec line, or they silently fall back to the SPA HTML (200 text/html instead of the file) in `build/web`. Verify bundled assets with `curl -I localhost:8899/assets/assets/<path>` → content_type must not be text/html.

@@ -162,22 +162,9 @@ class _DetailBody extends StatelessWidget {
                     Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Container(
-                          width: 48,
-                          height: 48,
-                          alignment: Alignment.center,
-                          decoration: BoxDecoration(
-                            color: AppColors.brand(detail.brandCode),
-                            borderRadius: BorderRadius.circular(14),
-                          ),
-                          child: Text(
-                            AppColors.brandShort(detail.brandCode),
-                            style: const TextStyle(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w800,
-                              color: Colors.white,
-                            ),
-                          ),
+                        BrandBadge(
+                          brandCode: detail.brandCode,
+                          size: 48,
                         ),
                         const SizedBox(width: 12),
                         Expanded(
