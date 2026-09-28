@@ -32,7 +32,8 @@ class SettingsScreen extends ConsumerWidget {
               padding: const EdgeInsets.fromLTRB(16, 0, 16, 20),
               child: _ActiveCarCard(
                 modelName: active.modelName,
-                imageAsset: carImageAsset('', active.modelName),
+                imageAsset: carImageAsset('', active.modelName,
+                    photos: ref.watch(carPhotoMapProvider).value),
                 subtitle: '${_fuelLabel(active.fuelType)} · '
                     '${(active.latestRecordedKmPerL ?? active.manualFuelEfficiency ?? active.avgFuelEfficiency).toStringAsFixed(1)} km/L · '
                     '${active.tankSizeL.toStringAsFixed(0)}L',

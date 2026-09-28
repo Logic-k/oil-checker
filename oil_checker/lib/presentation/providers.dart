@@ -125,6 +125,27 @@ final carSpecLoaderProvider = FutureProvider<CarSpecLoader>((ref) async {
   return CarSpecLoader.fromCsv(data, tankCsv: tank);
 });
 
+/// 차종별 실사 이미지 매핑 (pattern → asset 경로).
+///
+/// tool/fetch_car_images.py가 Wikimedia Commons에서 수집한 결과
+/// (assets/data/car_image_map.csv). 없으면 실루엣 폴백만 사용.
+final carPhotoMapProvider = FutureProvider<Map<String, String>>((ref) async {
+  try {
+    final csv = await rootBundle.loadString('assets/data/car_image_map.csv');
+    final map = <String, String>{};
+    for (final line in csv.split('\n').skip(1)) {
+      final i = line.indexOf(',');
+      if (i <= 0) continue;
+      final j = line.indexOf(',', i + 1);
+      if (j <= i + 1) continue;
+      map[line.substring(0, i).trim()] = line.substring(i + 1, j).trim();
+    }
+    return map;
+  } catch (_) {
+    return const {};
+  }
+});
+
 /// 활성 차량 프로필 (없으면 null) — DB 변경 시 자동 갱신
 final activeCarProfileProvider = StreamProvider<CarProfile?>((ref) {
   return ref.watch(appDatabaseProvider).watchActiveCarProfile();
@@ -350,6 +371,8 @@ class EconomyRankingResult {
     required this.isRealEfficiency,
     required this.ranked,
     required this.congestionLevel,
+    required this.baselinePrice,
+    required this.fillUpLiters,
   });
 
   /// 계산에 사용된 연비 (km/L) — 실연비 우선, 없으면 수동/표시연비
@@ -363,6 +386,12 @@ class EconomyRankingResult {
 
   /// 계산 시점의 도로 혼잡 단계 (UI 표시용)
   final CongestionLevel congestionLevel;
+
+  /// 기준 주유소(가장 가까운 곳) 가격 — 카드별 리터당 가격차 계산용
+  final int baselinePrice;
+
+  /// 주유량(L) = 차량 탱크 용량 — 카드별 총절약액 표시용
+  final double fillUpLiters;
 
   /// 가장 경제적인 주유소 (1위) — 없으면 null
   EconomyRankingEntry? get best => ranked.isEmpty ? null : ranked.first;
@@ -523,6 +552,8 @@ final economyRankingProvider =
     isRealEfficiency: isRealEfficiency,
     ranked: results,
     congestionLevel: congestionLevel,
+    baselinePrice: baseline.price,
+    fillUpLiters: profile.tankSizeL,
   );
 });
 
@@ -560,6 +591,8 @@ Future<EconomyRankingResult> _fallbackRanking({
     isRealEfficiency: isRealEfficiency,
     ranked: results,
     congestionLevel: congestionLevel,
+    baselinePrice: baseline.price,
+    fillUpLiters: profile.tankSizeL,
   );
 }
 

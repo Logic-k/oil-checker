@@ -9,6 +9,7 @@ import 'package:maplibre_gl/maplibre_gl.dart' as ml;
 import 'package:oil_checker/core/coordinate/katec.dart';
 import 'package:oil_checker/core/format/distance_format.dart';
 import 'package:oil_checker/core/opinet/opinet_station.dart';
+import 'package:oil_checker/core/theme/app_motion.dart';
 import 'package:oil_checker/core/theme/app_theme.dart';
 import 'package:oil_checker/presentation/providers.dart';
 import 'package:oil_checker/presentation/widgets/app_state_views.dart';
@@ -181,6 +182,26 @@ class _DriveScreenState extends ConsumerState<DriveScreen> {
                         onTap: _toggle3d,
                       ),
                       const SizedBox(height: 10),
+                      // 자유 회전 — 데스크톱에서도 버튼으로 돌릴 수 있게
+                      _roundButton(
+                        icon: Icons.rotate_left,
+                        tooltip: '반시계 회전',
+                        onTap: () => _rotateBy(-45),
+                      ),
+                      const SizedBox(height: 10),
+                      _roundButton(
+                        icon: Icons.rotate_right,
+                        tooltip: '시계 회전',
+                        onTap: () => _rotateBy(45),
+                      ),
+                      const SizedBox(height: 10),
+                      // 북쪽 정렬 나침반
+                      _roundButton(
+                        icon: Icons.explore_outlined,
+                        tooltip: '북쪽으로 정렬',
+                        onTap: _resetNorth,
+                      ),
+                      const SizedBox(height: 10),
                       _roundButton(
                         icon: _following
                             ? Icons.gps_fixed
@@ -231,6 +252,8 @@ class _DriveScreenState extends ConsumerState<DriveScreen> {
   Future<void> _onStyleLoaded() async {
     final map = _map;
     if (map == null) return;
+    // async 갭 이전에 읽어둔다 (use_build_context_synchronously)
+    final reduceMotion = AppMotion.reduceMotion(context);
     try {
       // 3D 건물 — 평면 building 레이어 위, 라벨 계열 아래에 돌출.
       // 스타일마다 라벨 레이어 id가 달라 첫 심볼성 레이어를 찾아 그 아래에 둔다.
@@ -242,19 +265,25 @@ class _DriveScreenState extends ConsumerState<DriveScreen> {
               orElse: () => '',
             ),
       );
+      // 진입 시 건물이 바닥에서 솟아오르는 인트로 — reduceMotion이면 즉시
       await map.addFillExtrusionLayer(
         'openmaptiles',
         'buildings-3d',
-        const ml.FillExtrusionLayerProperties(
-          fillExtrusionColor: '#A8B7C4',
-          fillExtrusionOpacity: 0.8,
-          fillExtrusionHeight: [ml.Expressions.get, 'render_height'],
+        ml.FillExtrusionLayerProperties(
+          fillExtrusionColor: '#8FA5BC',
+          fillExtrusionOpacity: reduceMotion ? 0.88 : 0.0,
+          fillExtrusionHeight: [
+            ml.Expressions.multiply,
+            reduceMotion ? 1.0 : 0.0,
+            [ml.Expressions.get, 'render_height'],
+          ],
           fillExtrusionBase: [ml.Expressions.get, 'render_min_height'],
         ),
         sourceLayer: 'building',
         belowLayerId: belowLabel.isEmpty ? null : belowLabel,
         minzoom: 13,
       );
+      if (!reduceMotion) _riseBuildings();
       await map.addGeoJsonSource(
         DriveScreen._stationsSource,
         const {'type': 'FeatureCollection', 'features': <dynamic>[]},
@@ -273,18 +302,27 @@ class _DriveScreenState extends ConsumerState<DriveScreen> {
             ['linear'],
             [ml.Expressions.zoom],
             13,
-            5,
+            8,
             17,
-            9,
+            13,
           ],
+          // 정유사 브랜드 컬러 — 어느 주유소인지 지도에서 바로 식별
           circleColor: [
             ml.Expressions.caseExpression,
             [ml.Expressions.get, 'best'],
             '#FFB020', // 경제성 1위 — 골드
-            '#31445B',
+            [
+              'match',
+              [ml.Expressions.get, 'brand'],
+              'HDO', '#E5484D',
+              'GSC', '#2563EB',
+              'SKE', '#F5A524',
+              'SOL', '#0E9F6E',
+              '#7C6BF5',
+            ],
           ],
           circleStrokeColor: '#FFFFFF',
-          circleStrokeWidth: 2.5,
+          circleStrokeWidth: 3,
         ),
       );
       await map.addSymbolLayer(
@@ -300,7 +338,7 @@ class _DriveScreenState extends ConsumerState<DriveScreen> {
             '원',
           ],
           textFont: ['Noto Sans Regular'],
-          textSize: 11,
+          textSize: 13,
           textColor: [
             ml.Expressions.caseExpression,
             [ml.Expressions.get, 'best'],
@@ -308,9 +346,9 @@ class _DriveScreenState extends ConsumerState<DriveScreen> {
             '#31445B',
           ],
           textHaloColor: '#FFFFFF',
-          textHaloWidth: 1.6,
+          textHaloWidth: 2.4,
           textAnchor: 'bottom',
-          textOffset: [0.0, -1.3],
+          textOffset: [0.0, -1.5],
           textAllowOverlap: false,
         ),
       );
@@ -348,6 +386,7 @@ class _DriveScreenState extends ConsumerState<DriveScreen> {
               'uniId': s.uniId,
               'name': s.name,
               'price': s.price,
+              'brand': s.brandCode,
               'best': s.uniId == bestId,
             },
             'geometry': {'type': 'Point', 'coordinates': _stationLngLat(s)},
@@ -527,6 +566,84 @@ class _DriveScreenState extends ConsumerState<DriveScreen> {
         duration: const Duration(milliseconds: 600),
       );
     }
+    if (_is3d && !AppMotion.reduceMotion(context)) _riseBuildings();
+  }
+
+  /// 진입/3D 전환 시 건물이 바닥에서 솟아오르는 연출 —
+  /// fill-extrusion-height 배수를 스텝으로 올린다 (웹은 transition 미지원).
+  void _riseBuildings() {
+    const steps = 14;
+    var i = 0;
+    Timer.periodic(const Duration(milliseconds: 55), (t) {
+      i++;
+      final f = Curves.easeOutCubic.transform(i / steps);
+      _map?.setLayerProperties(
+        'buildings-3d',
+        ml.FillExtrusionLayerProperties(
+          fillExtrusionColor: '#8FA5BC',
+          fillExtrusionOpacity: 0.88 * f,
+          fillExtrusionHeight: [
+            ml.Expressions.multiply,
+            f,
+            [ml.Expressions.get, 'render_height'],
+          ],
+          fillExtrusionBase: [ml.Expressions.get, 'render_min_height'],
+        ),
+      );
+      if (i >= steps) t.cancel();
+    });
+  }
+
+  /// 버튼 회전 — 데스크톱 웹(우클릭 드래그 미지원 사용자)용 회전 진입점
+  void _rotateBy(double deltaDeg) {
+    final cam = _map?.cameraPosition;
+    if (cam == null || !_styleReady) return;
+    final gen = ++_cameraGen;
+    _programmaticCamera = true;
+    _cameraGuardTimer?.cancel();
+    _cameraGuardTimer = Timer(const Duration(milliseconds: 700), () {
+      if (gen == _cameraGen) _programmaticCamera = false;
+    });
+    unawaited(
+      _map?.easeCamera(
+        ml.CameraUpdate.newCameraPosition(
+          ml.CameraPosition(
+            target: cam.target,
+            zoom: cam.zoom,
+            tilt: cam.tilt,
+            bearing: cam.bearing + deltaDeg,
+          ),
+        ),
+        duration: const Duration(milliseconds: 450),
+      ),
+    );
+    // 수동 회전은 팔로우 해제 — 헤드업 베어링과 충돌 방지
+    if (_following) setState(() => _following = false);
+  }
+
+  /// 북쪽 정렬 — 현재 위치/틸트 유지, 베어링만 0으로
+  void _resetNorth() {
+    final cam = _map?.cameraPosition;
+    if (cam == null || !_styleReady) return;
+    final gen = ++_cameraGen;
+    _programmaticCamera = true;
+    _cameraGuardTimer?.cancel();
+    _cameraGuardTimer = Timer(const Duration(milliseconds: 700), () {
+      if (gen == _cameraGen) _programmaticCamera = false;
+    });
+    unawaited(
+      _map?.easeCamera(
+        ml.CameraUpdate.newCameraPosition(
+          ml.CameraPosition(
+            target: cam.target,
+            zoom: cam.zoom,
+            tilt: cam.tilt,
+            bearing: 0,
+          ),
+        ),
+        duration: const Duration(milliseconds: 500),
+      ),
+    );
   }
 
   // ── 아일랜드 데이터 ────────────────────────────────────────────

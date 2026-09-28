@@ -328,6 +328,22 @@ class _CarSetupScreenState extends ConsumerState<CarSetupScreen> {
                 modelName: selected.modelName,
                 height: 96,
               ),
+              if (carImageIsPhoto(carImageAsset(
+                selected.vehicleType,
+                selected.modelName,
+                fuelType: selected.fuelType,
+                photos: ref.watch(carPhotoMapProvider).value,
+              ))) ...[
+                const SizedBox(height: 6),
+                Text(
+                  '사진: Wikimedia Commons (CC 라이선스)',
+                  style: TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w500,
+                    color: Colors.white.withValues(alpha: 0.4),
+                  ),
+                ),
+              ],
               const SizedBox(height: 14),
               Row(
                 children: [
@@ -667,32 +683,13 @@ class _CarResultTile extends StatelessWidget {
           ),
           child: Row(
             children: [
-              Container(
-                width: 44,
+              // 차종 이미지 — 실사(매핑된 모델) 또는 클래스 실루엣
+              CarImage(
+                vehicleType: entry.vehicleType,
+                fuelType: entry.fuelType,
+                modelName: entry.modelName,
+                width: 62,
                 height: 44,
-                alignment: Alignment.center,
-                decoration: BoxDecoration(
-                  color: selected
-                      ? AppColors.best
-                      : scheme.surfaceContainerHighest,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Text(
-                  entry.manufacturer.isEmpty
-                      ? '차량'
-                      : entry.manufacturer.substring(
-                          0,
-                          entry.manufacturer.length > 2
-                              ? 2
-                              : entry.manufacturer.length,
-                        ),
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w800,
-                    color:
-                        selected ? AppColors.ink : scheme.onSurfaceVariant,
-                  ),
-                ),
               ),
               const SizedBox(width: 12),
               Expanded(

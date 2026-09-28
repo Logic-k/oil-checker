@@ -47,6 +47,8 @@ void main() {
       fuelEfficiency: 12.0,
       isRealEfficiency: true,
       congestionLevel: CongestionLevel.heavy,
+      baselinePrice: 1700,
+      fillUpLiters: 50,
       ranked: [
         EconomyRankingEntry(
           station: stations[0],

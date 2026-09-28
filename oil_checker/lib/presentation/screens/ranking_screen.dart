@@ -194,6 +194,8 @@ class _RankingBody extends ConsumerWidget {
                             savingAmount: shown[i].result.score,
                             detourKm: shown[i].result.detourKm,
                             driveTimeMin: shown[i].result.driveTimeMin,
+                            detourCost: shown[i].result.detourCost,
+                            baselinePrice: result.baselinePrice,
                             onTap: position == null ? null : open,
                           ),
                           openBuilder: (context, _) => StationDetailScreen(
@@ -315,19 +317,22 @@ class _BestCard extends ConsumerWidget {
             children: [
               Row(
                 children: [
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 9, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: AppColors.best,
-                      borderRadius: BorderRadius.circular(7),
-                    ),
-                    child: const Text(
-                      '1위',
-                      style: TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w800,
-                        color: AppColors.ink,
+                  // 1위 메달 — 팝인으로 확정감
+                  PopIn(
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 9, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: AppColors.best,
+                        borderRadius: BorderRadius.circular(7),
+                      ),
+                      child: const Text(
+                        '1위',
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w800,
+                          color: AppColors.ink,
+                        ),
                       ),
                     ),
                   ),
